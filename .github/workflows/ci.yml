@@ -1,0 +1,140 @@
+# ci.yml → INTEGRACIÓN CONTINUA de Pepa de Oro con GitHub Actions.
+#
+# ¿Qué es? Un "robot" de GitHub que, cada vez que alguien sube código (push) o abre un Pull Request,
+# descarga el repositorio en una máquina limpia y comprueba que TODO sigue funcionando:
+#
+#   1. backend   → instala, revisa el estilo (lint), corre las 124 pruebas de reglas (RN-01…RN-26) y compila.
+#   2. frontend  → instala y compila Angular en modo producción (si una plantilla tiene un error, aquí falla).
+#   3. semilla   → levanta un MongoDB de verdad y simula 1 mes de operación usando los servicios reales:
+#                  es una prueba de integración "de punta a punta" de los 19 módulos.
+#
+# Si un paso falla, el PR queda marcado con ❌ y no se debería fusionar (regla de protección de la rama main).
+# Dónde se ve: pestaña "Actions" del repositorio en GitHub.
+
+name: CI
+
+# on: CUÁNDO se ejecuta.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  # workflow_dispatch: permite ejecutarlo a mano con el botón "Run workflow".
+  workflow_dispatch:
+
+# concurrency: si subes otro commit a la misma rama, cancela la ejecución anterior (ahorra minutos).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# permissions: el robot solo necesita LEER el código (principio de mínimo privilegio).
+permissions:
+  contents: read
+
+jobs:
+  # ─────────────────────────── 1. BACKEND ───────────────────────────
+  backend:
+    name: Backend (lint · pruebas · build)
+    runs-on: ubuntu-latest
+    # defaults.run.working-directory: todos los comandos de este job se ejecutan dentro de backend/.
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      # actions/checkout: descarga el código del repositorio en la máquina del robot.
+      - uses: actions/checkout@v4
+
+      # actions/setup-node: instala Node 22 y guarda en caché las dependencias de npm (más rápido la próxima vez).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # npm ci: instala EXACTAMENTE las versiones de package-lock.json (reproducible; no lo modifica).
+      - name: Instalar dependencias
+        run: npm ci
+
+      # oxlint: revisa errores típicos y código sin usar.
+      - name: Lint
+        run: npm run lint
+
+      # vitest: pruebas unitarias de las reglas de negocio (no necesitan base de datos).
+      - name: Pruebas unitarias (reglas de negocio)
+        run: npm test
+
+      # nest build: compila TypeScript → JavaScript en dist/. Si hay un error de tipos, falla aquí.
+      - name: Compilar
+        run: npm run build
+
+  # ─────────────────────────── 2. FRONTEND ───────────────────────────
+  frontend:
+    name: Frontend (build de producción)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      # ng build: compila en modo producción (optimizado). Revisa también las plantillas HTML.
+      - name: Compilar Angular
+        run: npx ng build --configuration production
+      # upload-artifact: guarda la web compilada para descargarla desde la pestaña Actions (7 días).
+      - name: Guardar la web compilada
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+  # ─────────────────────────── 3. SEMILLA (integración) ───────────────────────────
+  semilla:
+    name: Integración (semilla de 1 mes sobre MongoDB)
+    runs-on: ubuntu-latest
+    # needs: solo corre si el backend pasó (no tiene sentido simular con código que no compila).
+    needs: backend
+    # services: contenedores que GitHub levanta junto al job. Aquí, un MongoDB 8 vacío en el puerto 27017.
+    services:
+      mongo:
+        image: mongo:8
+        ports:
+          - 27017:27017
+        # options: espera a que Mongo responda antes de seguir.
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    # env: variables de entorno (en lugar del archivo .env, que nunca se sube).
+    env:
+      MONGO_URI: mongodb://localhost:27017/pepadeoro_ci
+      JWT_SECRET: secreto-solo-para-ci
+      CORREO_MODO: apagado
+      TZ: America/Guayaquil
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      # --meses=1: simula solo un mes para que termine en menos de un minuto.
+      - name: Simular 1 mes de operación
+        run: npm run seed -- --meses=1
+      # Comprobación final: la base debe tener ventas y facturas; si quedó vacía, algo se rompió.
+      - name: Verificar que se generaron datos
+        run: |
+          VENTAS=$(docker run --rm --network host mongo:8 mongosh "$MONGO_URI" --quiet --eval 'db.facturas.countDocuments()')
+          echo "Facturas generadas: $VENTAS"
+          test "$VENTAS" -gt 0
