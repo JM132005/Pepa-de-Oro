@@ -1,0 +1,75 @@
+<!-- productos.html → catálogo con filtros -->
+
+<section class="web-seccion" style="padding-top:2rem">
+  <div class="web-contenedor">
+    <div class="encabezado-pagina">
+      <div>
+        <span class="antetitulo">Catálogo</span>
+        <h1>Productos</h1>
+        <span class="web-en-vivo">Stock en vivo{{ horaStock() ? ' · actualizado ' + hace(horaStock()) : '' }}</span>
+      </div>
+      <p class="tenue" style="max-width:420px">Precios por menor en USD, sin IVA (en la ficha de cada producto ves el precio con IVA). Por mayor hay precios especiales: agrega productos a tu lista de interés y pide una cotización.</p>
+    </div>
+
+    <!-- Chips de familia (Chocolates, Café, Cacao en grano…) -->
+    <div class="web-filtros" role="group" aria-label="Familias">
+      <button type="button" class="web-chip" [class.activo]="!familia()" (click)="filtrar({ familia: null })">Todos</button>
+      @for (f of familias(); track f.valor) {
+        <button type="button" class="web-chip" [class.activo]="familia() === f.valor" (click)="filtrar({ familia: f.valor })">{{ f.texto }}</button>
+      }
+    </div>
+
+    <!-- Búsqueda, sabor, presentación y precio -->
+    <div class="web-panel-filtros">
+      <div class="campo" style="margin:0">
+        <label for="buscar">Buscar</label>
+        <input id="buscar" type="search" placeholder="Ej: maracuyá, nibs, café molido…" [ngModel]="busqueda()" (ngModelChange)="filtrar({ q: $event || null })" />
+      </div>
+      <div class="campo" style="margin:0">
+        <label for="sabor">Sabor</label>
+        <select id="sabor" [ngModel]="sabor()" (ngModelChange)="filtrar({ sabor: $event || null })">
+          <option value="">Todos</option>
+          @for (s of sabores(); track s) {
+            <option [value]="s">{{ s }}</option>
+          }
+        </select>
+      </div>
+      <div class="campo" style="margin:0">
+        <label for="presentacion">Presentación</label>
+        <select id="presentacion" [ngModel]="presentacion()" (ngModelChange)="filtrar({ presentacion: $event || null })">
+          <option value="">Todas</option>
+          @for (p of presentaciones(); track p) {
+            <option [value]="p">{{ p }}</option>
+          }
+        </select>
+      </div>
+    </div>
+    <div class="fila entre" style="margin-bottom:1.25rem">
+      <label class="fila" style="gap:0.6rem;flex:1;min-width:240px;max-width:460px">
+        <span class="tenue" style="white-space:nowrap">Precio hasta</span>
+        <!-- input range: deslizador de precio -->
+        <input type="range" min="1" [max]="precioTope()" step="1" [value]="precioMax() ?? precioTope()" (change)="filtrar({ precioMax: +$any($event.target).value })" aria-label="Precio máximo" />
+        <strong style="white-space:nowrap">{{ dinero(precioMax() ?? precioTope()) }}</strong>
+      </label>
+      <div class="fila">
+        <label class="fila" style="gap:0.35rem"><input type="checkbox" [checked]="soloDisponibles()" (change)="soloDisponibles.set(!soloDisponibles())" /> Solo disponibles</label>
+        <button class="btn btn-borde btn-sm" type="button" (click)="limpiar()">Limpiar filtros</button>
+      </div>
+    </div>
+
+    @if (todos() === null) {
+      <app-cargando texto="Cargando catálogo" />
+    } @else if (filtrados().length) {
+      <p class="tenue">{{ filtrados().length }} producto(s)</p>
+      <div class="web-rejilla-productos">
+        @for (p of filtrados(); track p.slug) {
+          <app-tarjeta-producto [producto]="p" />
+        }
+      </div>
+    } @else {
+      <app-vacio texto="No encontramos productos con esos filtros.">
+        <button class="btn btn-borde btn-sm" type="button" (click)="limpiar()">Ver todos</button>
+      </app-vacio>
+    }
+  </div>
+</section>

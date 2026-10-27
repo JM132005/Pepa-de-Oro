@@ -1,0 +1,29 @@
+<!-- paneles.html → paneles de KPIs por área -->
+
+<div class="encabezado-pagina">
+  <div>
+    <h1>{{ panel()?.titulo ?? 'Paneles' }}</h1>
+    <p class="tenue">Indicadores del período elegido comparados con el período anterior de la misma duración.</p>
+  </div>
+  <app-selector-periodo [desde]="desde()" [hasta]="hasta()" (cambio)="cambiarPeriodo($event)" />
+</div>
+
+<!-- Pestañas: un enlace por panel permitido -->
+@if (disponibles().length > 1) {
+  <nav class="pestanas" aria-label="Paneles">
+    @for (p of disponibles(); track p.area) {
+      <button type="button" [class.activa]="(panel()?.area ?? area()) === p.area" [routerLink]="['/admin/paneles', p.area]">{{ p.titulo }}</button>
+    }
+  </nav>
+}
+
+@if (error(); as e) {
+  <div class="aviso peligro">{{ e }}</div>
+}
+@if (panel(); as p) {
+  <div [style.opacity]="cargando() ? 0.5 : 1" style="transition:opacity .2s">
+    <app-panel-kpis [panel]="p" />
+  </div>
+} @else if (cargando()) {
+  <app-cargando texto="Calculando indicadores" />
+}

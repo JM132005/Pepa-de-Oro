@@ -1,0 +1,122 @@
+<!-- inicio.html → portada de la web pública -->
+
+<!-- 1) Banner rotativo: todas las diapositivas están encimadas y solo la "visible" tiene opacidad 1 -->
+<section class="web-banner" aria-roledescription="carrusel">
+  @if (datos(); as d) {
+    @for (b of d.banners; track b.titulo; let i = $index) {
+      <div class="diapositiva" [class.visible]="i === actual()" [attr.aria-hidden]="i !== actual()">
+        <app-imagen [src]="b.imagen" alt="" [perezosa]="i > 0" />
+        <div class="web-contenedor texto-banner">
+          <span class="antetitulo" style="color:var(--oro-400)">Cacao &amp; Café de El Oro</span>
+          @if (i === 0) {
+            <h1>{{ b.titulo }}</h1>
+          } @else {
+            <h2 style="font-size:clamp(2rem,5vw,3.2rem);color:#fff">{{ b.titulo }}</h2>
+          }
+          <p>{{ b.subtitulo }}</p>
+          <div class="acciones">
+            <a class="btn btn-oro" [routerLink]="b.enlace">{{ b.boton }}</a>
+            <a class="btn btn-borde" style="color:#fff;border-color:rgba(255,255,255,.4)" routerLink="/contacto">Contáctanos</a>
+          </div>
+        </div>
+      </div>
+    }
+    <div class="puntos">
+      @for (b of d.banners; track b.titulo; let i = $index) {
+        <button type="button" [class.activo]="i === actual()" (click)="actual.set(i)" [attr.aria-label]="'Ver banner ' + (i + 1)"></button>
+      }
+    </div>
+  }
+</section>
+
+<!-- 2) Frase de marca y cifras grandes -->
+<section class="web-seccion">
+  <div class="web-contenedor">
+    @if (datos(); as d) {
+      <p class="web-titulo-seccion" style="font-family:var(--fuente-titulos);font-size:1.35rem">{{ d.frase }}</p>
+    }
+    @if (sitio.empresa(); as e) {
+      <div class="web-cifras">
+        <div><strong>{{ numero(e.cifras.hectareas, 0) }}</strong><span class="tenue">hectáreas cultivadas</span></div>
+        <div><strong>{{ e.cifras.productores }}+</strong><span class="tenue">productores asociados</span></div>
+        <div><strong>{{ e.cifras.haciendas }}</strong><span class="tenue">haciendas propias</span></div>
+        <div><strong>{{ e.cifras.anios }}</strong><span class="tenue">años de historia</span></div>
+      </div>
+    }
+  </div>
+</section>
+
+<!-- 3) Las cuatro líneas de negocio -->
+<section class="web-seccion crema">
+  <div class="web-contenedor">
+    <div class="web-titulo-seccion">
+      <span class="antetitulo">Lo que hacemos</span>
+      <h2>De la parcela a tu mesa, y todo lo que hay en el camino</h2>
+    </div>
+    <div class="web-lineas">
+      @for (l of datos()?.lineas ?? []; track l.titulo) {
+        <article class="web-linea">
+          <div class="icono-circulo"><app-icono [nombre]="l.icono" [tam]="24" /></div>
+          <h3>{{ l.titulo }}</h3>
+          <p class="tenue">{{ l.texto }}</p>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- 4) Productos destacados (precio y stock salen de la misma base que usa el personal) -->
+<section class="web-seccion">
+  <div class="web-contenedor">
+    <div class="encabezado-pagina">
+      <div>
+        <span class="antetitulo">Destacados</span>
+        <h2>Nuestros favoritos</h2>
+        <span class="web-en-vivo">Precio y stock en vivo</span>
+      </div>
+      <a class="btn btn-borde" routerLink="/productos">Ver todo el catálogo →</a>
+    </div>
+    @if (destacados(); as lista) {
+      <div class="web-rejilla-productos">
+        @for (p of lista; track p.slug) {
+          <app-tarjeta-producto [producto]="p" />
+        }
+      </div>
+    } @else {
+      <app-cargando texto="Cargando productos" />
+    }
+  </div>
+</section>
+
+<!-- 5) Testimonios -->
+@if (testimonios().length) {
+  <section class="web-seccion oscura">
+    <div class="web-contenedor">
+      <div class="web-titulo-seccion">
+        <span class="antetitulo" style="color:var(--oro-400)">Testimonios</span>
+        <h2>Lo que dicen quienes trabajan con nosotros</h2>
+      </div>
+      <div class="web-testimonios">
+        @for (t of testimonios(); track t.nombre) {
+          <blockquote class="web-testimonio">
+            <p>“{{ t.texto }}”</p>
+            <footer><strong>{{ t.nombre }}</strong> · {{ t.cargo }}</footer>
+          </blockquote>
+        }
+      </div>
+    </div>
+  </section>
+}
+
+<!-- 6) Llamado a contactar -->
+<section class="web-seccion">
+  <div class="web-contenedor tarjeta" style="text-align:center;padding:2.5rem 1.25rem">
+    <h2>¿Buscas cacao, chocolate o un servicio para tu finca?</h2>
+    <p class="tenue">Arma tu lista de interés y te enviamos una cotización, o escríbenos directamente.</p>
+    <div class="acciones" style="justify-content:center">
+      <a class="btn btn-primario" routerLink="/productos">Ver productos</a>
+      <a class="btn btn-borde" routerLink="/contacto">Escribirnos</a>
+      <a class="btn btn-borde" [href]="sitio.enlaceWhatsapp()" target="_blank" rel="noopener"><app-icono nombre="whatsapp" /> WhatsApp</a>
+    </div>
+  </div>
+</section>

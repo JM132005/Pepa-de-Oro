@@ -1,0 +1,123 @@
+<!-- producto-detalle.html → ficha de un producto -->
+
+<section class="web-seccion" style="padding-top:1.5rem">
+  <div class="web-contenedor">
+    <!-- Migas de pan: Inicio / Productos / Nombre -->
+    <nav class="tenue" style="font-size:0.85rem;margin-bottom:1rem" aria-label="Ruta">
+      <a routerLink="/">Inicio</a> / <a routerLink="/productos">Productos</a>
+      @if (producto(); as p) {
+        / <a routerLink="/productos" [queryParams]="{ familia: p.familia }">{{ p.familiaNombre }}</a> / {{ p.productoBase }}
+      }
+    </nav>
+
+    @if (noExiste()) {
+      <app-vacio texto="Este producto no existe o ya no está publicado.">
+        <a class="btn btn-primario btn-sm" routerLink="/productos">Ver el catálogo</a>
+      </app-vacio>
+    } @else if (producto(); as p) {
+      <div class="web-ficha">
+        <!-- Galería -->
+        <div class="web-galeria">
+          <div class="principal"><app-imagen [src]="fotoActiva()" [alt]="p.productoBase" [perezosa]="false" /></div>
+          @if (fotos().length > 1) {
+            <div class="miniaturas">
+              @for (f of fotos(); track f) {
+                <button type="button" [class.activa]="f === fotoActiva()" (click)="fotoActiva.set(f)" aria-label="Ver foto"><app-imagen [src]="f" alt="" /></button>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Información -->
+        <div>
+          <span class="antetitulo">{{ p.familiaNombre }}</span>
+          <h1>{{ p.productoBase }}</h1>
+          <div class="fila" style="margin-bottom:0.75rem">
+            <app-insignia [valor]="p.estado" />
+            <span class="web-en-vivo">Stock en vivo</span>
+          </div>
+          @if (p.descripcion) {
+            <p>{{ p.descripcion }}</p>
+          }
+          @if (p.notasCata?.length) {
+            <p class="tenue" style="margin-bottom:0.35rem;font-size:0.85rem">Notas de cata</p>
+            <div class="web-notas" style="margin-bottom:0.9rem">
+              @for (n of p.notasCata; track n) {
+                <span class="web-nota">{{ n }}</span>
+              }
+            </div>
+          }
+          <dl class="datos" style="margin-bottom:1rem">
+            @if (p.origen) {
+              <dt>Origen</dt>
+              <dd>{{ p.origen }}</dd>
+            }
+            @if (p.ingredientes) {
+              <dt>Ingredientes</dt>
+              <dd>{{ p.ingredientes }}</dd>
+            }
+            @if (p.alergenos) {
+              <dt>Alérgenos</dt>
+              <dd>{{ p.alergenos }}</dd>
+            }
+          </dl>
+
+          <!-- Variantes: cada sabor/presentación con su precio, escalas y stock -->
+          <h2 style="font-size:1.2rem;margin-top:1.25rem">Presentaciones</h2>
+          @for (v of p.variantes; track v._id) {
+            <div class="web-variante">
+              <div>
+                <strong>{{ v.sabor ? v.sabor + ' · ' : '' }}{{ v.presentacion ?? v.nombre }}</strong>
+                <div class="fila" style="gap:0.6rem;margin-top:0.2rem">
+                  <span class="web-precio">{{ dinero(v.precioMenorConIva) }}</span>
+                  <span class="tenue" style="font-size:0.8rem">IVA {{ v.tarifaIva }} % incl. · por {{ v.unidad === 'KG' ? 'kg' : 'unidad' }}</span>
+                  <app-insignia [valor]="v.estado" />
+                </div>
+                <div class="tenue" style="font-size:0.82rem;margin-top:0.2rem">
+                  @if (v.cantidadMinimaMayor) {
+                    Por mayor: {{ dinero(v.precioMayor) }} + IVA desde {{ numero(v.cantidadMinimaMayor, 0) }} {{ v.unidad === 'KG' ? 'kg' : 'u' }}.
+                  }
+                  @for (e of v.escalas; track e.desde) {
+                    · {{ dinero(e.precio) }} desde {{ numero(e.desde, 0) }}
+                  }
+                  @if (v.unidad === 'KG' && v.estado !== 'AGOTADO') {
+                    <br />Disponible: {{ numero(v.disponible, 0) }} kg ({{ v.sacos }} sacos de 69 kg · {{ v.quintales }} qq)
+                  }
+                </div>
+              </div>
+              <div style="text-align:right">
+                @if (v.estado === 'AGOTADO' || v.estado === 'PROXIMAMENTE') {
+                  <button class="btn btn-borde btn-sm" type="button" (click)="avisoDe.set(v)"><app-icono nombre="campana" [tam]="16" /> Avísame cuando llegue</button>
+                } @else {
+                  <div class="cantidad">
+                    <input type="number" min="1" [value]="cantidad(v)" (change)="cambiarCantidad(v, +$any($event.target).value)" [attr.aria-label]="'Cantidad de ' + v.nombre" />
+                    <button class="btn btn-primario btn-sm" type="button" (click)="agregar(v)"><app-icono nombre="mas" [tam]="16" /> A mi lista</button>
+                  </div>
+                  <small class="tenue">Referencial: {{ dinero(precioPara(v, cantidad(v)) * cantidad(v)) }} + IVA</small>
+                }
+              </div>
+            </div>
+          }
+          <p class="tenue" style="font-size:0.82rem;margin-top:0.75rem">
+            No vendemos en línea: agrega a tu lista y pide una cotización, o compra directamente en nuestra tienda de Machala.
+          </p>
+        </div>
+      </div>
+    } @else {
+      <app-cargando texto="Cargando producto" />
+    }
+  </div>
+</section>
+
+<!-- WhatsApp con el nombre del producto ya escrito (reemplaza al botón general mientras se ve la ficha) -->
+@if (producto()) {
+  <app-boton-whatsapp [mensaje]="mensajeWhatsapp()" />
+}
+
+<!-- Ventana "Avísame cuando llegue" -->
+@if (avisoDe(); as v) {
+  <app-modal [titulo]="'Avísame cuando llegue: ' + v.nombre" (cerrar)="avisoDe.set(null)">
+    <p class="tenue">Déjanos tus datos y te escribimos apenas tengamos stock.</p>
+    <app-formulario-solicitud [conEmpresa]="false" textoBoton="Avisarme" [ocupado]="enviando()" (enviar)="avisarme($event)" />
+  </app-modal>
+}

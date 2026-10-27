@@ -1,0 +1,55 @@
+<!-- login.html → pantalla de ingreso al sistema -->
+
+<div class="adm-login">
+  <!-- Lado izquierdo (solo en pantallas anchas): imagen de marca -->
+  <section class="lado-marca">
+    <img class="fondo" src="/img/banners/haciendas.svg" alt="" />
+    <div style="position:relative">
+      <img src="/img/logo.svg" alt="" width="56" height="56" style="margin-bottom:1rem" />
+      <h1 style="color:#fff">Pepa de Oro</h1>
+      <p style="max-width:440px">Del campo a la factura en un solo sistema: haciendas, acopio, calidad, planta, inventario, ventas, flota y taller.</p>
+    </div>
+  </section>
+
+  <!-- Lado derecho: formulario -->
+  <section class="lado-form">
+    <form [formGroup]="form" (ngSubmit)="entrar()" novalidate>
+      <a routerLink="/" class="tenue" style="font-size:0.85rem">← Volver a la web</a>
+      <h2 style="margin-top:1rem">Ingresar al sistema</h2>
+      <p class="tenue">Usa tu correo de la empresa.</p>
+
+      @if (error(); as e) {
+        <div class="aviso peligro" role="alert">{{ e }}</div>
+      }
+
+      <div class="campo">
+        <label for="correo">Correo</label>
+        <input id="correo" type="email" formControlName="correo" autocomplete="username" placeholder="nombre@pepadeoro.ec" />
+        @if (form.controls.correo.invalid && form.controls.correo.touched) {
+          <span class="error-campo">Escribe un correo válido</span>
+        }
+      </div>
+      <div class="campo">
+        <label for="contrasena">Contraseña</label>
+        <div class="fila" style="flex-wrap:nowrap">
+          <input id="contrasena" [type]="verContrasena() ? 'text' : 'password'" formControlName="contrasena" autocomplete="current-password" />
+          <button class="btn-icono" type="button" (click)="verContrasena.set(!verContrasena())" [attr.aria-label]="verContrasena() ? 'Ocultar contraseña' : 'Ver contraseña'"><app-icono nombre="ojo" /></button>
+        </div>
+        @if (form.controls.contrasena.invalid && form.controls.contrasena.touched) {
+          <span class="error-campo">Escribe tu contraseña</span>
+        }
+      </div>
+      <button class="btn btn-primario" type="submit" style="width:100%" [disabled]="ocupado()">{{ ocupado() ? 'Ingresando…' : 'Ingresar' }}</button>
+
+      <!-- Cuentas de prueba (datos ficticios del seed) -->
+      <div class="tarjeta" style="margin-top:1.5rem;padding:0.85rem">
+        <p style="font-size:0.82rem;margin-bottom:0.5rem"><strong>Cuentas de prueba</strong> <span class="tenue">· contraseña <span class="mono">PepaDeOro2026*</span></span></p>
+        <div class="adm-demo">
+          @for (c of cuentas; track c.correo) {
+            <button class="btn btn-borde btn-sm" type="button" (click)="usarCuenta(c.correo)">{{ c.rol }}</button>
+          }
+        </div>
+      </div>
+    </form>
+  </section>
+</div>

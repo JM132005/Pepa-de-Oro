@@ -1,0 +1,78 @@
+<!-- parcela-detalle.html → ficha completa de una parcela -->
+
+<a routerLink="/admin/campo" class="tenue" style="font-size:0.85rem">← Volver a Campo</a>
+
+@if (ficha(); as f) {
+  <div class="encabezado-pagina" style="margin-top:0.5rem">
+    <div>
+      <h1>Parcela {{ f.codigo }}</h1>
+      <p class="tenue">{{ $any(f.hacienda).nombre }} · {{ texto(f.cultivo) }} {{ texto(f.variedad) }}{{ f.clon ? ' (' + f.clon + ')' : '' }} · {{ numero(f.hectareas, 1) }} ha · {{ numero(f.plantas, 0) }} plantas · sembrada en {{ f.anioSiembra }}</p>
+    </div>
+    @if (auth.tieneRol('AGRONOMO')) {
+      <div class="acciones">
+        <button class="btn btn-primario" type="button" [disabled]="!!f.bloqueoCarencia" [title]="f.bloqueoCarencia ?? ''" (click)="registrando.set('COSECHA')"><app-icono nombre="grano" /> Cosecha</button>
+        <button class="btn btn-borde" type="button" (click)="registrando.set('LABOR')"><app-icono nombre="campo" /> Labor</button>
+        <button class="btn btn-borde" type="button" (click)="editando.set(true)"><app-icono nombre="editar" /> Editar</button>
+      </div>
+    }
+  </div>
+
+  @if (f.bloqueoCarencia) {
+    <div class="aviso peligro"><span class="rn">RN-01</span> {{ f.bloqueoCarencia }}</div>
+  }
+
+  <div class="adm-resumen">
+    <div class="adm-dato"><span>Etapa ({{ f.etapa.edad }} años)</span><strong>{{ texto(f.etapa.etapa) }}</strong></div>
+    <div class="adm-dato"><span>Estado</span><strong>{{ texto(f.estado) }}</strong></div>
+    <div class="adm-dato"><span>Kg cosechados</span><strong>{{ numero(f.kpis.kgCosechados, 0) }}</strong></div>
+    <div class="adm-dato"><span>Kg secos estimados</span><strong>{{ numero(f.kpis.kgSecos, 0) }}</strong></div>
+    <div class="adm-dato"><span>Rendimiento</span><strong>{{ numero(f.kpis.rendimientoKgHa, 0) }} <small>kg/ha</small></strong></div>
+    <div class="adm-dato"><span>Costo por kg seco</span><strong>{{ f.kpis.costoPorKg ? dinero(f.kpis.costoPorKg) : '—' }}</strong></div>
+  </div>
+
+  <div class="rejilla dos" style="margin-bottom:1rem">
+    <section class="tarjeta">
+      <h3>Plan de labores</h3>
+      <div class="tabla-contenedor">
+        <table>
+          <thead><tr><th>Labor</th><th class="num">Cada</th><th>Última vez</th><th>Estado</th></tr></thead>
+          <tbody>
+            @for (t of f.planLabores; track t.tipo) {
+              @let atraso = atrasoDe(t.tipo);
+              <tr>
+                <td>{{ texto(t.tipo) }}</td>
+                <td class="num">{{ t.cadaDias }} días</td>
+                <td>{{ fecha(t.ultimaFecha) }}</td>
+                <td>
+                  @if (atraso) { <span class="insignia tono-peligro">{{ atraso.diasAtraso }} días de atraso</span> } @else { <span class="insignia tono-exito">Al día</span> }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="tenue" style="font-size:0.8rem;margin-top:0.5rem">Costo acumulado: jornales {{ dinero(f.kpis.costoJornales) }} · insumos {{ dinero(f.kpis.costoInsumos) }}</p>
+    </section>
+    <section class="tarjeta"><app-grafico [datos]="graficoCosechas()" [titulo]="'Cosechas por mes'" /></section>
+  </div>
+
+  <h2>Cosechas</h2>
+  <app-tabla [filas]="f.cosechas" [columnas]="columnasCosechas" [porPagina]="10" nombreArchivo="cosechas-parcela" />
+  <h2 style="margin-top:1.25rem">Labores</h2>
+  <app-tabla [filas]="f.labores" [columnas]="columnasLabores" [porPagina]="10" nombreArchivo="labores-parcela" />
+  <h2 style="margin-top:1.25rem">Sanidad</h2>
+  <app-tabla [filas]="f.monitoreos" [columnas]="columnasSanidad" [porPagina]="10" nombreArchivo="sanidad-parcela" />
+
+  @if (registrando(); as r) {
+    <app-modal [titulo]="(r === 'COSECHA' ? 'Cosecha en ' : 'Labor en ') + f.codigo" ancho="ancho" (cerrar)="registrando.set(null)">
+      <app-formulario-campo [modo]="r" [parcelas]="[f]" [parcelaInicial]="f._id" [trabajadores]="trabajadores()" [insumosDisponibles]="insumos()" [ocupado]="ocupado()" (guardar)="registrar($event)" />
+    </app-modal>
+  }
+  @if (editando()) {
+    <app-modal [titulo]="'Editar parcela ' + f.codigo" ancho="ancho" (cerrar)="editando.set(false)">
+      <app-formulario-dinamico [campos]="camposParcela" [valores]="f" [ocupado]="ocupado()" (guardar)="guardar($event)" />
+    </app-modal>
+  }
+} @else {
+  <app-cargando texto="Cargando la parcela" />
+}

@@ -1,0 +1,40 @@
+<!-- contacto.html → formulario, datos y mapas -->
+
+<section class="web-seccion" style="padding-top:2rem">
+  <div class="web-contenedor rejilla dos" style="align-items:start">
+    <div>
+      <span class="antetitulo">Contacto</span>
+      <h1>Conversemos</h1>
+      <p class="tenue">Cotizaciones por mayor, exportación, alquiler de equipos, fletes o lo que necesites: te respondemos el mismo día hábil.</p>
+      @if (enviado(); as n) {
+        <div class="aviso exito">✓ Recibimos tu mensaje (solicitud <strong>{{ n }}</strong>). Te enviamos una confirmación a tu correo.</div>
+      }
+      <div class="tarjeta">
+        <app-formulario-solicitud [ocupado]="enviando()" (enviar)="enviar($event)" />
+      </div>
+    </div>
+
+    <div>
+      @if (sitio.empresa(); as e) {
+        <div class="tarjeta" style="margin-bottom:1rem">
+          <ul style="list-style:none;padding:0;margin:0;display:grid;gap:0.75rem">
+            <li class="fila"><app-icono nombre="whatsapp" /> <a [href]="sitio.enlaceWhatsapp()" target="_blank" rel="noopener">Escríbenos por WhatsApp</a></li>
+            <li class="fila"><app-icono nombre="telefono" /> <a [href]="'tel:' + e.telefono">{{ e.telefono }}</a></li>
+            <li class="fila"><app-icono nombre="correo" /> <a [href]="'mailto:' + e.correo">{{ e.correo }}</a></li>
+            <li class="fila"><app-icono nombre="reloj" /> {{ e.horario }}</li>
+          </ul>
+        </div>
+        <h3>Matriz y planta</h3>
+        <p class="tenue fila"><app-icono nombre="ubicacion" [tam]="16" /> {{ e.direccionMatriz }}</p>
+        @if (mapas().matriz; as m) {
+          <iframe class="web-mapa" [src]="m" title="Mapa de la matriz" loading="lazy"></iframe>
+        }
+        <h3 style="margin-top:1.25rem">Tienda</h3>
+        <p class="tenue fila"><app-icono nombre="ubicacion" [tam]="16" /> {{ e.direccionTienda }}</p>
+        @if (mapas().tienda; as m) {
+          <iframe class="web-mapa" [src]="m" title="Mapa de la tienda" loading="lazy"></iframe>
+        }
+      }
+    </div>
+  </div>
+</section>

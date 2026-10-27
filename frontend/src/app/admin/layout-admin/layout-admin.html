@@ -1,0 +1,52 @@
+<!-- layout-admin.html → estructura de TODAS las pantallas del sistema interno -->
+
+<div class="adm-marco">
+  <!-- Menú lateral -->
+  <aside class="adm-menu" [class.abierto]="menuAbierto()">
+    <a class="marca" routerLink="/admin">
+      <img src="/img/logo.svg" alt="" width="34" height="34" />
+      <span>Pepa de Oro<small>Sistema interno</small></span>
+    </a>
+    <nav aria-label="Menú del sistema">
+      @for (s of menu(); track s.titulo) {
+        <h4>{{ s.titulo }}</h4>
+        @for (o of s.opciones; track o.ruta) {
+          <!-- exact: "Inicio" (/admin) solo se marca activo en /admin, no en /admin/caja -->
+          <a [routerLink]="o.ruta" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: o.ruta === '/admin' }">
+            <app-icono [nombre]="o.icono" /> {{ o.texto }}
+          </a>
+        }
+      }
+    </nav>
+    <div class="pie-menu">
+      <a routerLink="/" target="_blank"><app-icono nombre="web" [tam]="16" /> Ver la web pública</a>
+    </div>
+  </aside>
+  @if (menuAbierto()) {
+    <div class="adm-fondo-menu" (click)="menuAbierto.set(false)"></div>
+  }
+
+  <!-- Columna derecha: barra superior + página -->
+  <div style="min-width:0">
+    <header class="adm-barra">
+      <button class="btn-icono adm-solo-movil" type="button" (click)="menuAbierto.set(true)" aria-label="Abrir menú"><app-icono nombre="menu" [tam]="22" /></button>
+      <span class="titulo">{{ titulo() }}</span>
+      <div class="derecha">
+        <app-campana-alertas />
+        @if (auth.usuario(); as u) {
+          <div class="adm-usuario">
+            <span class="adm-avatar" [title]="u.nombre">{{ iniciales() }}</span>
+            <span class="movil-oculto" style="line-height:1.15">
+              <strong>{{ u.nombre }}</strong><br /><span class="tenue" style="font-size:0.75rem">{{ roles() }}</span>
+            </span>
+          </div>
+        }
+        <button class="btn-icono" type="button" (click)="auth.logout()" aria-label="Cerrar sesión" title="Cerrar sesión"><app-icono nombre="salir" [tam]="20" /></button>
+      </div>
+    </header>
+
+    <main class="adm-contenido">
+      <router-outlet />
+    </main>
+  </div>
+</div>

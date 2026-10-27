@@ -1,0 +1,47 @@
+<!-- configuracion.html → parámetros de la empresa -->
+
+<div class="encabezado-pagina">
+  <div><h1>Configuración</h1><p class="tenue">Parámetros que el gerente puede cambiar sin tocar el código.</p></div>
+</div>
+
+<nav class="pestanas">
+  @for (s of [['empresa','Empresa'],['ventas','Ventas'],['acopio','Acopio'],['calidad','Calidad'],['alertas','Alertas']]; track s[0]) {
+    <button type="button" [class.activa]="seccion() === s[0]" (click)="seccion.set($any(s[0]))">{{ s[1] }}</button>
+  }
+</nav>
+
+@if (config(); as c) {
+  <div class="tarjeta" style="max-width:900px">
+    @switch (seccion()) {
+      @case ('empresa') {
+        <div class="aviso oro">Estos datos salen en las facturas (formato SRI simulado) y en la web pública.</div>
+        <app-formulario-dinamico [campos]="camposEmpresa" [valores]="c['empresa']" [ocupado]="ocupado()" (guardar)="guardar('empresa', $event)" />
+      }
+      @case ('ventas') { <app-formulario-dinamico [campos]="camposVentas" [valores]="c['ventas']" [ocupado]="ocupado()" (guardar)="guardar('ventas', $event)" /> }
+      @case ('acopio') { <app-formulario-dinamico [campos]="camposAcopio" [valores]="c['acopio']" [ocupado]="ocupado()" (guardar)="guardar('acopio', $event)" /> }
+      @case ('alertas') { <app-formulario-dinamico [campos]="camposAlertas" [valores]="c['alertas']" [ocupado]="ocupado()" (guardar)="guardar('alertas', $event)" /> }
+      @case ('calidad') {
+        <h3>Límites para el grado del cacao <span class="rn">RN-06</span></h3>
+        <p class="tenue" style="font-size:0.85rem">Inspirados en la norma NTE INEN 176. El lote toma el primer grado cuyos límites cumple; si no cumple ninguno, se rechaza.</p>
+        <div class="tabla-contenedor">
+          <table>
+            <thead><tr><th>Grado</th>@for (col of columnasGrado; track col) { <th class="num">{{ titulosGrado[col] }}</th> }</tr></thead>
+            <tbody>
+              @for (g of grados(); track g['grado']; let i = $index) {
+                <tr>
+                  <td><strong>{{ g['grado'] }}</strong></td>
+                  @for (col of columnasGrado; track col) {
+                    <td class="num"><input type="number" step="0.1" style="width:80px;text-align:right" [ngModel]="g[col]" (ngModelChange)="cambiarGrado(i, col, +$event)" [attr.aria-label]="g['grado'] + ' ' + titulosGrado[col]" /></td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <button class="btn btn-primario" type="button" style="margin-top:0.75rem" [disabled]="ocupado()" (click)="guardarGrados()">Guardar límites</button>
+      }
+    }
+  </div>
+} @else {
+  <app-cargando />
+}

@@ -1,0 +1,165 @@
+<!-- facturas.html → facturas, notas de crédito y cuentas por cobrar -->
+
+<div class="encabezado-pagina">
+  <div>
+    <h1>Facturas y cobros</h1>
+    <p class="tenue">Comprobantes con formato del SRI (simulados, no autorizados). Ninguna factura se borra: se anula con nota de crédito <span class="rn">RN-21</span>.</p>
+  </div>
+</div>
+
+<nav class="pestanas">
+  <button type="button" [class.activa]="pestana() === 'todas'" (click)="pestana.set('todas')">Comprobantes</button>
+  <button type="button" [class.activa]="pestana() === 'cobrar'" (click)="pestana.set('cobrar')">Por cobrar ({{ porCobrar().length }})</button>
+</nav>
+
+@if (pestana() === 'todas') {
+  <div class="fila" style="margin-bottom:1rem">
+    <app-selector-periodo [desde]="desde()" [hasta]="hasta()" (cambio)="periodo($event)" />
+    <select style="width:auto" [ngModel]="canal()" (ngModelChange)="canal.set($event); cargar()" aria-label="Canal">
+      <option value="">Todos los canales</option>
+      <option value="MOSTRADOR">Mostrador</option>
+      <option value="MAYORISTA">Mayorista</option>
+      <option value="EXPORTACION">Exportación</option>
+    </select>
+    <select style="width:auto" [ngModel]="estadoPago()" (ngModelChange)="estadoPago.set($event); cargar()" aria-label="Estado de pago">
+      <option value="">Todo estado de pago</option>
+      <option value="PAGADA">Pagadas</option>
+      <option value="PENDIENTE">Pendientes</option>
+      <option value="PARCIAL">Abono parcial</option>
+    </select>
+    <select style="width:auto" [ngModel]="tipo()" (ngModelChange)="tipo.set($event); cargar()" aria-label="Tipo">
+      <option value="">Facturas y notas</option>
+      <option value="01">Solo facturas</option>
+      <option value="04">Solo notas de crédito</option>
+    </select>
+  </div>
+
+  <div class="adm-resumen">
+    <div class="adm-dato"><span>Facturas</span><strong>{{ resumen().numero }}</strong></div>
+    <div class="adm-dato"><span>Ventas sin IVA</span><strong>{{ dinero(resumen().ventas) }}</strong></div>
+    <div class="adm-dato"><span>IVA cobrado</span><strong>{{ dinero(resumen().iva) }}</strong></div>
+    <div class="adm-dato"><span>Notas de crédito</span><strong>{{ dinero(resumen().notas) }}</strong></div>
+    <div class="adm-dato" [class.peligro]="resumen().saldo > 0"><span>Saldo pendiente</span><strong>{{ dinero(resumen().saldo) }}</strong></div>
+  </div>
+
+  <app-tabla [filas]="facturas()" [columnas]="columnas" [clicable]="true" (seleccion)="abrir($event)" [acciones]="botones" nombreArchivo="facturas" />
+  <ng-template #botones let-f>
+    <button class="btn-icono" type="button" title="Ver PDF" (click)="pdf(f)"><app-icono nombre="pdf" /></button>
+    @if (f.saldo > 0.005) {
+      <button class="btn btn-borde btn-sm" type="button" (click)="prepararAbono(f)">Abonar</button>
+    }
+  </ng-template>
+} @else {
+  <div class="adm-resumen">
+    <div class="adm-dato peligro"><span>Total por cobrar</span><strong>{{ dinero(totalPorCobrar()) }}</strong></div>
+    @for (t of antiguedad(); track t[0]) {
+      <div class="adm-dato" [class.peligro]="t[0] !== 'Vigente' && t[1] > 0"><span>{{ t[0] }}</span><strong>{{ dinero(t[1]) }}</strong></div>
+    }
+  </div>
+  <app-tabla [filas]="porCobrar()" [columnas]="columnasCobrar" [clicable]="true" (seleccion)="abrir($event)" [acciones]="botonesCobrar" nombreArchivo="cuentas-por-cobrar" />
+  <ng-template #botonesCobrar let-f>
+    <button class="btn btn-primario btn-sm" type="button" (click)="prepararAbono(f)">Registrar abono</button>
+  </ng-template>
+}
+
+<!-- Detalle de una factura -->
+@if (detalle(); as f) {
+  <app-modal [titulo]="(f.tipoComprobante === '04' ? 'Nota de crédito ' : 'Factura ') + f.numero" ancho="ancho" (cerrar)="detalle.set(null)">
+    <div class="acciones" style="margin-bottom:1rem">
+      <button class="btn btn-primario btn-sm" type="button" (click)="pdf(f)"><app-icono nombre="pdf" /> Ver PDF</button>
+      <button class="btn btn-borde btn-sm" type="button" [disabled]="ocupado()" (click)="reenviar(f)"><app-icono nombre="correo" /> Reenviar al correo</button>
+      @if (f.saldo > 0.005) {
+        <button class="btn btn-borde btn-sm" type="button" (click)="prepararAbono(f)">Registrar abono</button>
+      }
+      @if (auth.esGerente() && f.tipoComprobante === '01' && f.estado !== 'ANULADA') {
+        <button class="btn btn-peligro btn-sm" type="button" (click)="prepararNc(f)">Nota de crédito</button>
+      }
+    </div>
+    <div class="rejilla dos">
+      <dl class="datos">
+        <dt>Cliente</dt><dd>{{ f.cliente.nombre }}</dd>
+        <dt>Identificación</dt><dd>{{ f.cliente.identificacion }}</dd>
+        <dt>Correo</dt><dd>{{ f.cliente.correo ?? '—' }}</dd>
+        <dt>Fecha</dt><dd>{{ fechaHora(f.fechaEmision) }}</dd>
+        <dt>Canal</dt><dd>{{ texto(f.canal) }}</dd>
+        <dt>Vendedor</dt><dd>{{ f.vendedor.nombre }}</dd>
+      </dl>
+      <dl class="datos">
+        <dt>Clave de acceso</dt><dd class="mono" style="word-break:break-all">{{ f.claveAcceso }}</dd>
+        <dt>Estado</dt><dd><app-insignia [valor]="f.estado" /> <app-insignia [valor]="f.estadoPago" /></dd>
+        @if (f.creditoDias) { <dt>Crédito</dt><dd>{{ f.creditoDias }} días · vence {{ fecha(f.vence) }}</dd> }
+        @if (f.facturaModificada) { <dt>Modifica a</dt><dd>Factura {{ f.facturaModificada.numero }}</dd> }
+        @if (f.motivo) { <dt>Motivo</dt><dd>{{ f.motivo }}</dd> }
+      </dl>
+    </div>
+    <div class="tabla-contenedor" style="margin-top:1rem">
+      <table>
+        <thead><tr><th>Código</th><th>Descripción</th><th class="num">Cant.</th><th class="num">P. unit.</th><th class="num">Desc.</th><th class="num">Subtotal</th><th class="num">IVA</th></tr></thead>
+        <tbody>
+          @for (it of f.items; track $index) {
+            <tr><td class="mono">{{ it.codigo }}</td><td>{{ it.descripcion }}</td><td class="num">{{ it.cantidad }}</td><td class="num">{{ dinero(it.precioUnitario) }}</td><td class="num">{{ dinero(it.descuento) }}</td><td class="num">{{ dinero(it.subtotal) }}</td><td class="num">{{ it.tarifaIva }} %</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="adm-totales" style="max-width:320px;margin:0.75rem 0 0 auto">
+      <span class="tenue">Subtotal 15 %</span><span class="derecha">{{ dinero(f.subtotalIva) }}</span>
+      <span class="tenue">Subtotal 0 %</span><span class="derecha">{{ dinero(f.subtotal0) }}</span>
+      <span class="tenue">IVA</span><span class="derecha">{{ dinero(f.iva) }}</span>
+      <strong>Total</strong><span class="derecha total">{{ dinero(f.total) }}</span>
+    </div>
+    @if (f.pagos.length || f.abonos.length) {
+      <h3 style="margin-top:1rem">Pagos y abonos</h3>
+      <ul>
+        @for (p of f.pagos; track $index) { <li>{{ p.nombre }}: {{ dinero(p.monto) }}</li> }
+        @for (a of f.abonos; track $index) { <li>{{ fecha(a.fecha) }} · abono {{ dinero(a.monto) }} ({{ nombresPago[a.formaPago] ?? a.formaPago }}) {{ a.referencia ?? '' }} — {{ a.usuario }}</li> }
+      </ul>
+    }
+    @if (f.envios.length) {
+      <h3 style="margin-top:1rem">Envíos por correo</h3>
+      <ul class="tenue">
+        @for (e of f.envios; track $index) { <li>{{ fechaHora(e.fecha) }} · {{ e.ok ? '✓' : '✗' }} {{ e.destinatario }} ({{ e.modo }}) {{ e.error ?? '' }}</li> }
+      </ul>
+    }
+  </app-modal>
+}
+
+<!-- Abono -->
+@if (abonoDe(); as f) {
+  <app-modal [titulo]="'Abono a la factura ' + f.numero" (cerrar)="abonoDe.set(null)">
+    <p>{{ f.cliente.nombre }} · saldo <strong>{{ dinero(f.saldo) }}</strong></p>
+    <div class="rejilla-form">
+      <div class="campo"><label for="monto">Monto</label><input id="monto" type="number" min="0.01" [max]="f.saldo" step="0.01" [ngModel]="montoAbono()" (ngModelChange)="montoAbono.set(+$event)" /></div>
+      <div class="campo">
+        <label for="forma">Forma de pago</label>
+        <select id="forma" [ngModel]="formaAbono()" (ngModelChange)="formaAbono.set($event)">
+          @for (p of formasPago; track p.codigo) { <option [value]="p.codigo">{{ p.nombre }}</option> }
+        </select>
+      </div>
+      <div class="campo ancho-completo"><label for="ref">Referencia (número de transferencia)</label><input id="ref" [ngModel]="referencia()" (ngModelChange)="referencia.set($event)" /></div>
+    </div>
+    @if (montoAbono() > f.saldo + 0.005) { <p class="error-campo">El abono no puede ser mayor que el saldo.</p> }
+    <button class="btn btn-primario" type="button" [disabled]="ocupado() || montoAbono() <= 0 || montoAbono() > f.saldo + 0.005" (click)="abonar()">Registrar abono</button>
+  </app-modal>
+}
+
+<!-- Nota de crédito (solo gerente) -->
+@if (ncDe(); as f) {
+  <app-modal [titulo]="'Nota de crédito para ' + f.numero" ancho="ancho" (cerrar)="ncDe.set(null)">
+    <p class="tenue">Escribe cuántas unidades se devuelven de cada línea. Si no eliges ninguna, se <strong>anula toda la factura</strong>.</p>
+    <div class="tabla-contenedor">
+      <table>
+        <thead><tr><th>Descripción</th><th class="num">Vendidas</th><th class="num">Devolver</th></tr></thead>
+        <tbody>
+          @for (it of f.items; track $index; let i = $index) {
+            <tr><td>{{ it.descripcion }}</td><td class="num">{{ it.cantidad }}</td><td class="num"><input type="number" min="0" [max]="it.cantidad" style="width:90px" [ngModel]="lineasNc()[i] ?? 0" (ngModelChange)="cambiarLineaNc(i, +$event)" /></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="campo" style="margin-top:1rem"><label for="motivo">Motivo (mínimo 10 caracteres)</label><textarea id="motivo" rows="2" [ngModel]="motivoNc()" (ngModelChange)="motivoNc.set($event)"></textarea></div>
+    <label class="fila"><input type="checkbox" [checked]="devolverStock()" (change)="devolverStock.set(!devolverStock())" /> El producto vuelve a bodega (está en buen estado)</label>
+    <p style="margin-top:0.75rem">Valor de la nota de crédito: <strong>{{ dinero(totalNc()) }}</strong></p>
+    <button class="btn btn-peligro" type="button" [disabled]="ocupado() || motivoNc().trim().length < 10" (click)="emitirNc()">Emitir nota de crédito</button>
+  </app-modal>
+}

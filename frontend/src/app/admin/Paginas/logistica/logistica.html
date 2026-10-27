@@ -1,0 +1,109 @@
+<!-- logistica.html → viajes y costos de la flota -->
+
+<div class="encabezado-pagina">
+  <div><h1>Flota y viajes</h1><p class="tenue">Entregas, exportación, recolección en fincas y fletes a terceros.</p></div>
+  @if (auth.tieneRol('LOGISTICA', 'VENTAS', 'AGRONOMO', 'ACOPIO')) {
+    <button class="btn btn-primario" type="button" (click)="creando.set(true)"><app-icono nombre="logistica" /> {{ esLogistica() ? 'Programar viaje' : 'Pedir un viaje' }}</button>
+  }
+</div>
+
+<div class="web-filtros">
+  @for (e of [['PROGRAMADO,EN_RUTA','En curso'],['ENTREGADO','Entregados'],['CANCELADO','Cancelados'],['','Todos']]; track e[0]) {
+    <button type="button" class="web-chip" [class.activo]="estado() === e[0]" (click)="estado.set(e[0]); cargar()">{{ e[1] }}</button>
+  }
+</div>
+
+<app-tabla [filas]="viajes()" [columnas]="columnas" [acciones]="botones" nombreArchivo="viajes" />
+<ng-template #botones let-v>
+  <button class="btn-icono" type="button" title="Guía de remisión" (click)="guia(v)"><app-icono nombre="pdf" /></button>
+  @if (esLogistica()) {
+    @if (v.estado === 'PROGRAMADO') {
+      <button class="btn btn-primario btn-sm" type="button" (click)="iniciando.set({ viaje: v, km: v.camion.odometro })">Salir</button>
+      <button class="btn btn-borde btn-sm" type="button" (click)="cancelar(v)">Cancelar</button>
+    }
+    @if (v.estado === 'EN_RUTA') {
+      <button class="btn btn-exito btn-sm" type="button" (click)="completando.set({ viaje: v, km: (v.kmSalida ?? 0) + v.kmEstimados * 2, combustible: 0, peajes: 0, viaticos: 0 })">Llegó</button>
+    }
+  }
+</ng-template>
+
+@if (costos().length) {
+  <h2 style="margin-top:1.5rem">Costo por km de cada camión</h2>
+  <app-tabla [filas]="costos()" [columnas]="columnasCostos" [buscador]="false" />
+}
+
+@if (creando()) {
+  @let n = nuevo();
+  <app-modal [titulo]="esLogistica() ? 'Programar viaje' : 'Pedir un viaje'" ancho="ancho" (cerrar)="creando.set(false)">
+    <div class="rejilla-form">
+      <div class="campo">
+        <label for="vt">Tipo</label>
+        <select id="vt" [ngModel]="n.tipo" (ngModelChange)="cambiarNuevo('tipo', $event)">@for (t of tipos; track t) { <option [value]="t">{{ texto(t) }}</option> }</select>
+      </div>
+      @if (n.tipo === 'ENTREGA_VENTA' || n.tipo === 'EXPORTACION') {
+        <div class="campo">
+          <label for="vp">Pedido (en preparación)</label>
+          <select id="vp" [ngModel]="n.pedido" (ngModelChange)="elegirPedido($event)">
+            <option value="">— Ninguno —</option>
+            @for (p of pedidos(); track p._id) { <option [value]="p._id">{{ p.numero }} · {{ p.cliente.nombre }}</option> }
+          </select>
+        </div>
+      }
+      <div class="campo">
+        <label for="vc">Camión <span class="rn">RN-24</span></label>
+        <select id="vc" [ngModel]="n.camion" (ngModelChange)="cambiarNuevo('camion', $event)">
+          <option value="">— Elegir —</option>
+          @for (c of camiones(); track c._id) { <option [value]="c._id" [disabled]="c.estado === 'EN_MANTENIMIENTO'">{{ c.codigo }} · {{ c.nombre }} · {{ numero(c.capacidadKg, 0) }} kg ({{ texto(c.estado) }})</option> }
+        </select>
+      </div>
+      <div class="campo">
+        <label for="vch">Chofer</label>
+        <select id="vch" [ngModel]="n.chofer" (ngModelChange)="cambiarNuevo('chofer', $event)">
+          <option value="">— Elegir —</option>
+          @for (c of choferes(); track c._id) { <option [value]="c._id">{{ c.nombre }} · licencia {{ c.licenciaTipo }} (vence {{ fecha(c.licenciaVence) }})</option> }
+        </select>
+      </div>
+      <div class="campo"><label for="vo">Origen</label><input id="vo" [ngModel]="n.origen" (ngModelChange)="cambiarNuevo('origen', $event)" /></div>
+      <div class="campo"><label for="vd">Destino</label><input id="vd" [ngModel]="n.destino" (ngModelChange)="cambiarNuevo('destino', $event)" /></div>
+      <div class="campo"><label for="vs">Salida</label><input id="vs" type="datetime-local" [ngModel]="n.salida" (ngModelChange)="cambiarNuevo('salida', $event)" /></div>
+      <div class="campo"><label for="vl">Llegada estimada</label><input id="vl" type="datetime-local" [ngModel]="n.llegadaEstimada" (ngModelChange)="cambiarNuevo('llegadaEstimada', $event)" /></div>
+      <div class="campo"><label for="vk">Km estimados (ida)</label><input id="vk" type="number" min="0" [ngModel]="n.kmEstimados" (ngModelChange)="cambiarNuevo('kmEstimados', +$event)" /></div>
+      <div class="campo"><label for="vw">Peso de la carga (kg) <span class="rn">RN-25</span></label><input id="vw" type="number" min="1" [ngModel]="n.pesoKg" (ngModelChange)="cambiarNuevo('pesoKg', +$event)" /></div>
+      <div class="campo"><label for="vde">Descripción de la carga</label><input id="vde" [ngModel]="n.descripcion" (ngModelChange)="cambiarNuevo('descripcion', $event)" /></div>
+      <div class="campo"><label for="vb">Bultos</label><input id="vb" type="number" min="0" [ngModel]="n.bultos" (ngModelChange)="cambiarNuevo('bultos', +$event)" /></div>
+    </div>
+    @if (excedeCapacidad()) { <div class="aviso peligro"><span class="rn">RN-25</span> La carga supera la capacidad del camión ({{ numero(camionElegido()!.capacidadKg, 0) }} kg).</div> }
+    @if (n.tipo === 'FLETE_CLIENTE') {
+      <h3>Flete a cliente</h3>
+      <app-selector-cliente [(cliente)]="cliente" tipoPorDefecto="MAYORISTA" />
+      <div class="rejilla-form" style="margin-top:0.75rem">
+        <div class="campo">
+          <label for="tm">Tarifa</label>
+          <select id="tm" [ngModel]="n.tarifaModo" (ngModelChange)="cambiarNuevo('tarifaModo', $event)"><option value="POR_KM">Por km</option><option value="POR_TONELADA">Por tonelada</option><option value="FIJA">Fija por viaje</option></select>
+        </div>
+        <div class="campo"><label for="tv">Valor (USD)</label><input id="tv" type="number" min="0" step="0.01" [ngModel]="n.tarifaValor" (ngModelChange)="cambiarNuevo('tarifaValor', +$event)" /></div>
+      </div>
+      <p class="tenue" style="font-size:0.82rem">El transporte de carga se factura con IVA 0 %.</p>
+    }
+    <button class="btn btn-primario" type="button" [disabled]="ocupado() || !n.camion || !n.chofer || !n.destino || excedeCapacidad() || (n.tipo === 'FLETE_CLIENTE' && !cliente())" (click)="crear()">Programar</button>
+  </app-modal>
+}
+
+@if (iniciando(); as i) {
+  <app-modal [titulo]="'Salida del viaje ' + i.viaje.codigo" (cerrar)="iniciando.set(null)">
+    <div class="campo"><label for="ks">Odómetro al salir (km)</label><input id="ks" type="number" min="0" [ngModel]="i.km" (ngModelChange)="iniciando.set({ viaje: i.viaje, km: +$event })" /></div>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="iniciar()">Registrar salida</button>
+  </app-modal>
+}
+
+@if (completando(); as c) {
+  <app-modal [titulo]="'Llegada del viaje ' + c.viaje.codigo" (cerrar)="completando.set(null)">
+    <div class="rejilla-form">
+      <div class="campo"><label for="kl">Odómetro al volver (km)</label><input id="kl" type="number" min="0" [ngModel]="c.km" (ngModelChange)="completando.set({ viaje: c.viaje, km: +$event, combustible: c.combustible, peajes: c.peajes, viaticos: c.viaticos })" /></div>
+      <div class="campo"><label for="cc">Combustible (USD)</label><input id="cc" type="number" min="0" step="0.01" [ngModel]="c.combustible" (ngModelChange)="completando.set({ viaje: c.viaje, km: c.km, combustible: +$event, peajes: c.peajes, viaticos: c.viaticos })" /></div>
+      <div class="campo"><label for="cp">Peajes (USD)</label><input id="cp" type="number" min="0" step="0.01" [ngModel]="c.peajes" (ngModelChange)="completando.set({ viaje: c.viaje, km: c.km, combustible: c.combustible, peajes: +$event, viaticos: c.viaticos })" /></div>
+      <div class="campo"><label for="cv">Viáticos (USD)</label><input id="cv" type="number" min="0" step="0.01" [ngModel]="c.viaticos" (ngModelChange)="completando.set({ viaje: c.viaje, km: c.km, combustible: c.combustible, peajes: c.peajes, viaticos: +$event })" /></div>
+    </div>
+    <button class="btn btn-exito" type="button" [disabled]="ocupado() || c.km < (c.viaje.kmSalida ?? 0)" (click)="completar()">Registrar llegada</button>
+  </app-modal>
+}
