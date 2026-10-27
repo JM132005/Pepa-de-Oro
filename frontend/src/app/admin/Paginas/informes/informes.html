@@ -1,0 +1,87 @@
+<!-- informes.html → catálogo de informes, filtros, vista previa y descarga -->
+
+<div class="encabezado-pagina">
+  <div><h1>Informes</h1><p class="tenue">Descárgalos en PDF para imprimir o enviar, o en Excel para analizarlos.</p></div>
+  @if (auth.esGerente()) {
+    <button class="btn btn-borde" type="button" [disabled]="ocupado()" (click)="enviarGerencial()"><app-icono nombre="correo" /> Enviar el informe gerencial ahora</button>
+  }
+</div>
+
+<div class="rejilla" style="grid-template-columns:minmax(0,1fr)">
+  <div class="rejilla dos" style="align-items:start">
+    <!-- Catálogo -->
+    <section>
+      @for (g of porArea(); track g[0]) {
+        <h3 style="margin-top:0.5rem">{{ g[0] }}</h3>
+        @for (i of g[1]; track i.id) {
+          <button type="button" class="adm-ficha" style="width:100%;text-align:left;cursor:pointer" [style.border-color]="elegido()?.id === i.id ? 'var(--oro-500)' : null" (click)="elegir(i)">
+            <strong>{{ i.titulo }}</strong><br /><span class="tenue">{{ i.descripcion }}</span>
+          </button>
+        }
+      }
+    </section>
+
+    <!-- Filtros y acciones -->
+    <section>
+      @if (elegido(); as i) {
+        <div class="tarjeta" style="position:sticky;top:70px">
+          <h3>{{ i.titulo }}</h3>
+          <p class="tenue">{{ i.descripcion }}</p>
+          @if (i.filtros.includes('fechas')) {
+            <label class="tenue" style="font-size:0.82rem;font-weight:600">Período</label>
+            <div style="margin-bottom:0.75rem"><app-selector-periodo [desde]="desde()" [hasta]="hasta()" (cambio)="periodo($event)" /></div>
+          }
+          @if (i.filtros.includes('producto')) {
+            <div class="campo">
+              <label for="ip">Producto</label>
+              <select id="ip" [ngModel]="producto()" (ngModelChange)="producto.set($event)">
+                <option value="">— Elegir —</option>
+                @for (p of productos(); track p._id) { <option [value]="p._id">{{ p.sku }} · {{ p.nombre }}</option> }
+              </select>
+            </div>
+          }
+          @if (i.filtros.includes('cliente')) {
+            <div style="margin-bottom:0.75rem"><app-selector-cliente [(cliente)]="cliente" /></div>
+          }
+          @if (i.filtros.includes('codigo')) {
+            <div class="campo"><label for="ic">Código del lote</label><input id="ic" placeholder="Ej: PT-20261015-01" [ngModel]="codigo()" (ngModelChange)="codigo.set($event)" /></div>
+          }
+          <div class="acciones">
+            <button class="btn btn-borde" type="button" [disabled]="!filtrosListos()" (click)="previsualizar()"><app-icono nombre="ojo" /> Vista previa</button>
+            <button class="btn btn-primario" type="button" [disabled]="!filtrosListos()" (click)="pdf()"><app-icono nombre="pdf" /> PDF</button>
+            <button class="btn btn-borde" type="button" [disabled]="!filtrosListos()" (click)="excel()"><app-icono nombre="excel" /> Excel</button>
+          </div>
+        </div>
+      } @else {
+        <p class="tenue tarjeta">Elige un informe de la lista.</p>
+      }
+    </section>
+  </div>
+
+  <!-- Vista previa -->
+  @if (cargando()) {
+    <app-cargando texto="Generando el informe" />
+  }
+  @if (vista(); as v) {
+    <section class="tarjeta">
+      <h3 style="margin-bottom:0.2rem">{{ v.titulo }}</h3>
+      <p class="tenue">{{ v.subtitulo }}</p>
+      @if (v.resumen.length) {
+        <div class="adm-resumen">
+          @for (r of v.resumen; track r[0]) { <div class="adm-dato"><span>{{ r[0] }}</span><strong style="font-size:1.05rem">{{ r[1] }}</strong></div> }
+        </div>
+      }
+      <div class="tabla-contenedor" style="max-height:520px;overflow:auto">
+        <table>
+          <thead><tr>@for (c of v.columnas; track c.titulo) { <th [class.num]="c.alinear === 'right'">{{ c.titulo }}</th> }</tr></thead>
+          <tbody>
+            @for (f of v.filas.slice(0, 300); track $index) {
+              <tr>@for (celda of f; track $index; let j = $index) { <td [class.num]="v.columnas[j]?.alinear === 'right'">{{ celda }}</td> }</tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (v.filas.length > 300) { <p class="tenue" style="font-size:0.8rem">Se muestran 300 de {{ v.filas.length }} filas. Descarga el Excel para verlas todas.</p> }
+    </section>
+  }
+</div>

@@ -1,0 +1,155 @@
+<!-- equipos.html (admin) → activos y alquileres -->
+
+<div class="encabezado-pagina">
+  <div><h1>Equipos y alquileres</h1><p class="tenue">Maquinaria de planta, flota, equipos en venta y en alquiler.</p></div>
+  <div class="acciones">
+    @if (auth.tieneRol('VENTAS')) { <button class="btn btn-primario" type="button" (click)="alquilando.set(true)"><app-icono nombre="alquiler" /> Nuevo alquiler</button> }
+    @if (auth.tieneRol('VENTAS', 'LOGISTICA', 'MANTENIMIENTO')) { <button class="btn btn-borde" type="button" (click)="editando.set({ usos: ['ALQUILER'], nuevo: false, publicado: false })"><app-icono nombre="mas" /> Nuevo equipo</button> }
+  </div>
+</div>
+
+<nav class="pestanas">
+  <button type="button" [class.activa]="pestana() === 'activos'" (click)="pestana.set('activos')">Activos ({{ activos().length }})</button>
+  <button type="button" [class.activa]="pestana() === 'alquileres'" (click)="pestana.set('alquileres')">Alquileres</button>
+</nav>
+
+@if (pestana() === 'activos') {
+  <div class="fila" style="margin-bottom:0.75rem">
+    <select style="width:auto" [ngModel]="tipo()" (ngModelChange)="tipo.set($event)" aria-label="Tipo">
+      <option value="">Todos los tipos</option>
+      @for (t of tipos; track t) { <option [value]="t">{{ texto(t) }}</option> }
+    </select>
+    <select style="width:auto" [ngModel]="uso()" (ngModelChange)="uso.set($event)" aria-label="Uso">
+      <option value="">Todos los usos</option>
+      <option value="VENTA">En venta</option>
+      <option value="ALQUILER">En alquiler</option>
+      <option value="USO_INTERNO">Uso interno</option>
+    </select>
+  </div>
+  <app-tabla [filas]="filtrados()" [columnas]="columnasActivos" [clicable]="true" (seleccion)="abrirFicha($event)" nombreArchivo="activos" />
+} @else {
+  <div class="web-filtros">
+    @for (e of [['RESERVADO,ACTIVO','Vigentes'],['DEVUELTO','Devueltos'],['CANCELADO','Cancelados'],['','Todos']]; track e[0]) {
+      <button type="button" class="web-chip" [class.activo]="estadoAlquiler() === e[0]" (click)="estadoAlquiler.set(e[0]); cargarAlquileres()">{{ e[1] }}</button>
+    }
+  </div>
+  <app-tabla [filas]="alquileres()" [columnas]="columnasAlquileres" [acciones]="botonesAlq" nombreArchivo="alquileres" />
+  <ng-template #botonesAlq let-a>
+    <button class="btn-icono" type="button" title="Contrato" (click)="contrato(a)"><app-icono nombre="pdf" /></button>
+    @if (auth.tieneRol('VENTAS', 'LOGISTICA')) {
+      @if (a.estado === 'RESERVADO') { <button class="btn btn-primario btn-sm" type="button" (click)="entrega.set({ alquiler: a, horometro: a.activo.horometro, estadoEquipo: 'Buen estado, revisado por el taller' })">Entregar</button> }
+      @if (a.estado === 'ACTIVO') { <button class="btn btn-primario btn-sm" type="button" (click)="devolucion.set({ alquiler: a, horometro: a.entrega?.horometro ?? a.activo.horometro, danos: 0, observaciones: '' })">Recibir devolución</button> }
+    }
+    @if (auth.tieneRol('VENTAS')) {
+      @if (a.estado === 'DEVUELTO' && !a.factura) { <button class="btn btn-exito btn-sm" type="button" [disabled]="ocupado()" (click)="facturar(a)">Facturar</button> }
+      @if (a.estado === 'RESERVADO') { <button class="btn btn-borde btn-sm" type="button" (click)="cancelar(a)">Cancelar</button> }
+    }
+  </ng-template>
+}
+
+<!-- Ficha del activo -->
+@if (ficha(); as f) {
+  <app-modal [titulo]="f.codigo + ' · ' + f.nombre" ancho="ancho" (cerrar)="ficha.set(null)">
+    @if (f.usable) { <div class="aviso peligro"><span class="rn">RN-24</span> {{ f.usable }}</div> }
+    <div class="rejilla dos">
+      <div>
+        <div style="aspect-ratio:16/10;border-radius:var(--radio);overflow:hidden;background:var(--crema);margin-bottom:0.75rem"><app-imagen [src]="f.imagen" [alt]="f.nombre" respaldo="img/equipos/generico.svg" /></div>
+        <dl class="datos">
+          <dt>Tipo</dt><dd>{{ texto(f.tipo) }} · <app-insignia [valor]="f.estado" /></dd>
+          <dt>Marca / modelo</dt><dd>{{ f.marca ?? '—' }} {{ f.modelo }} {{ f.anio }}</dd>
+          @if (f.placa) { <dt>Placa</dt><dd>{{ f.placa }}</dd> }
+          <dt>Uso</dt><dd>{{ f.odometro ? numero(f.odometro, 0) + ' km' : numero(f.horometro, 0) + ' h' }}</dd>
+          @if (f.capacidadKg) { <dt>Capacidad</dt><dd>{{ numero(f.capacidadKg, 0) }} kg <span class="rn">RN-25</span></dd> }
+          <dt>Valor actual</dt><dd>{{ dinero(f.valorActual) }}</dd>
+          @if (f.usos.includes('VENTA')) { <dt>Precio de venta</dt><dd>{{ dinero(f.precioVenta) }}</dd> }
+          @if (f.usos.includes('ALQUILER')) { <dt>Tarifas</dt><dd>{{ dinero(f.tarifas.dia ?? 0) }}/día · {{ dinero(f.tarifas.semana ?? 0) }}/semana · operador {{ dinero(f.tarifaOperadorDia) }}/día</dd> }
+          <dt>Costo de mantenimiento</dt><dd>{{ dinero(f.costoMantenimiento) }}</dd>
+        </dl>
+      </div>
+      <div>
+        @if (f.documentos.length) {
+          <h3>Documentos</h3>
+          <ul>@for (d of f.documentos; track d.tipo) { <li>{{ texto(d.tipo) }} {{ d.numero ?? '' }} · vence {{ fecha(d.vence) }}</li> }</ul>
+        }
+        @if (f.planMantenimiento.length) {
+          <h3>Plan de mantenimiento</h3>
+          <ul class="tenue" style="font-size:0.85rem">@for (t of f.planMantenimiento; track t.tarea) { <li>{{ t.tarea }} · cada {{ t.cadaDias ? t.cadaDias + ' días' : '' }}{{ t.cadaUso ? ' / ' + t.cadaUso + (f.odometro ? ' km' : ' h') : '' }} · última {{ fecha(t.ultimaFecha) }}</li> }</ul>
+        }
+        @if (f.ocupado.length) {
+          <h3>Agenda ocupada</h3>
+          <ul class="tenue" style="font-size:0.85rem">@for (o of f.ocupado; track o.desde) { <li>{{ fecha(o.desde) }} – {{ fecha(o.hasta) }} · {{ o.etiqueta }}</li> }</ul>
+        }
+        <h3>Últimos mantenimientos</h3>
+        <ul class="tenue" style="font-size:0.85rem">@for (o of f.ordenes.slice(0, 6); track o._id) { <li>{{ o.codigo }} · {{ texto(o.tipo) }} · {{ texto(o.estado) }} · {{ dinero(o.costos.costoTotal ?? 0) }}</li> } @empty { <li>Sin órdenes</li> }</ul>
+      </div>
+    </div>
+    <div class="acciones" style="margin-top:1rem">
+      @if (auth.tieneRol('VENTAS', 'LOGISTICA', 'MANTENIMIENTO')) { <button class="btn btn-borde" type="button" (click)="editando.set(f)"><app-icono nombre="editar" /> Editar</button> }
+      @if (auth.tieneRol('VENTAS') && f.usos.includes('VENTA') && !['VENDIDO', 'BAJA'].includes(f.estado)) { <button class="btn btn-oro" type="button" (click)="prepararVenta(f)">Vender</button> }
+      @if (auth.esGerente() && !['VENDIDO', 'BAJA'].includes(f.estado)) { <button class="btn btn-peligro" type="button" (click)="baja.set({ activo: f, motivo: '' })">Dar de baja</button> }
+    </div>
+  </app-modal>
+}
+
+@if (editando(); as a) {
+  <app-modal [titulo]="a._id ? 'Editar ' + a.nombre : 'Nuevo equipo'" ancho="ancho" (cerrar)="editando.set(null)">
+    <app-formulario-dinamico [campos]="campos" [valores]="a" [ocupado]="ocupado()" (guardar)="guardar($event)" />
+  </app-modal>
+}
+
+@if (baja(); as b) {
+  <app-modal [titulo]="'Dar de baja ' + b.activo.codigo" (cerrar)="baja.set(null)">
+    <div class="campo"><label for="mb">Motivo (mínimo 10 caracteres)</label><textarea id="mb" rows="2" [ngModel]="b.motivo" (ngModelChange)="baja.set({ activo: b.activo, motivo: $event })"></textarea></div>
+    <div class="aviso oro">Acción sensible: solo el gerente; queda en la auditoría.</div>
+    <button class="btn btn-peligro" type="button" [disabled]="ocupado() || b.motivo.trim().length < 10" (click)="darDeBaja()">Confirmar baja</button>
+  </app-modal>
+}
+
+@if (vendiendo(); as a) {
+  <app-modal [titulo]="'Vender ' + a.nombre" ancho="ancho" (cerrar)="vendiendo.set(null)">
+    <app-selector-cliente [(cliente)]="cliente" tipoPorDefecto="MAYORISTA" />
+    <div class="campo" style="margin-top:0.75rem"><label for="pv">Precio de venta (sin IVA)</label><input id="pv" type="number" min="0" step="0.01" [ngModel]="precioVenta()" (ngModelChange)="precioVenta.set(+$event)" /></div>
+    <p class="tenue" style="font-size:0.82rem">Tractores, motocultores y fumigadoras van con IVA 0 % (maquinaria agrícola); el resto 15 %.</p>
+    <button class="btn btn-oro" type="button" [disabled]="ocupado() || !cliente()" (click)="vender()">Facturar la venta</button>
+  </app-modal>
+}
+
+@if (alquilando()) {
+  <app-modal titulo="Nuevo alquiler" ancho="ancho" (cerrar)="alquilando.set(false)">
+    <div class="rejilla-form">
+      <div class="campo ancho-completo">
+        <label for="ae">Equipo</label>
+        <select id="ae" [ngModel]="activoAlquiler()" (ngModelChange)="activoAlquiler.set($event)">
+          <option value="">— Elegir —</option>
+          @for (a of paraAlquilar(); track a._id) { <option [value]="a._id">{{ a.codigo }} · {{ a.nombre }} ({{ texto(a.estado) }}) · {{ dinero(a.tarifas.dia ?? 0) }}/día</option> }
+        </select>
+      </div>
+      <div class="campo"><label for="ad">Desde</label><input id="ad" type="date" [ngModel]="desde()" (ngModelChange)="desde.set($event)" /></div>
+      <div class="campo"><label for="ah">Hasta</label><input id="ah" type="date" [min]="desde()" [ngModel]="hasta()" (ngModelChange)="hasta.set($event)" /></div>
+      <div class="campo ancho-completo"><label for="al">Lugar de trabajo</label><input id="al" [ngModel]="lugar()" (ngModelChange)="lugar.set($event)" placeholder="Ej: Finca en Pasaje" /></div>
+    </div>
+    <label class="fila"><input type="checkbox" [checked]="conOperador()" (change)="conOperador.set(!conOperador())" /> Con operador</label>
+    <div style="margin:0.75rem 0"><app-selector-cliente [(cliente)]="cliente" tipoPorDefecto="MAYORISTA" /></div>
+    @if (elegidoAlquiler(); as a) {
+      <div class="aviso oro">{{ dias() }} día(s) · estimado {{ dinero(estimado()) }} + IVA · garantía {{ dinero(a.garantia) }} (se descuenta de daños). <span class="rn">RN-23</span> Si las fechas cruzan otro alquiler o un mantenimiento, el sistema no lo permite.</div>
+    }
+    <button class="btn btn-primario" type="button" [disabled]="ocupado() || !cliente() || !activoAlquiler()" (click)="crearAlquiler()">Reservar alquiler</button>
+  </app-modal>
+}
+
+@if (entrega(); as e) {
+  <app-modal [titulo]="'Entregar ' + e.alquiler.activo.nombre" (cerrar)="entrega.set(null)">
+    <div class="campo"><label for="eh">Horómetro al entregar</label><input id="eh" type="number" min="0" [ngModel]="e.horometro" (ngModelChange)="entrega.set({ alquiler: e.alquiler, horometro: +$event, estadoEquipo: e.estadoEquipo })" /></div>
+    <div class="campo"><label for="ee">Estado del equipo</label><input id="ee" [ngModel]="e.estadoEquipo" (ngModelChange)="entrega.set({ alquiler: e.alquiler, horometro: e.horometro, estadoEquipo: $event })" /></div>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="entregar()">Registrar entrega</button>
+  </app-modal>
+}
+
+@if (devolucion(); as d) {
+  <app-modal [titulo]="'Devolución de ' + d.alquiler.activo.nombre" (cerrar)="devolucion.set(null)">
+    <div class="campo"><label for="dh">Horómetro al devolver</label><input id="dh" type="number" min="0" [ngModel]="d.horometro" (ngModelChange)="devolucion.set({ alquiler: d.alquiler, horometro: +$event, danos: d.danos, observaciones: d.observaciones })" /></div>
+    <div class="campo"><label for="dd">Daños (USD)</label><input id="dd" type="number" min="0" [ngModel]="d.danos" (ngModelChange)="devolucion.set({ alquiler: d.alquiler, horometro: d.horometro, danos: +$event, observaciones: d.observaciones })" /></div>
+    <div class="campo"><label for="do">Observaciones</label><textarea id="do" rows="2" [ngModel]="d.observaciones" (ngModelChange)="devolucion.set({ alquiler: d.alquiler, horometro: d.horometro, danos: d.danos, observaciones: $event })"></textarea></div>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="devolver()">Registrar devolución</button>
+  </app-modal>
+}

@@ -1,0 +1,124 @@
+<!-- caja.html → venta por menor en la tienda -->
+
+@if (turno() === undefined) {
+  <app-cargando texto="Revisando la caja" />
+} @else if (turno() === null) {
+  <!-- Caja cerrada: abrir turno -->
+  <div class="encabezado-pagina"><div><h1>Caja de la tienda</h1><p class="tenue">Abre tu turno para empezar a vender.</p></div></div>
+  <div class="tarjeta" style="max-width:420px">
+    <h3>Abrir turno</h3>
+    <div class="campo">
+      <label for="fondo">Fondo de caja (efectivo inicial)</label>
+      <input id="fondo" type="number" min="0" step="0.01" [ngModel]="montoInicial()" (ngModelChange)="montoInicial.set(+$event)" />
+    </div>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="abrir()"><app-icono nombre="caja" /> Abrir caja</button>
+  </div>
+  <h2 style="margin-top:2rem">Turnos anteriores</h2>
+  <app-tabla [filas]="historial()" [columnas]="columnasHistorial" nombreArchivo="cierres-de-caja" />
+} @else {
+  @let t = turno()!;
+  <div class="encabezado-pagina">
+    <div>
+      <h1>Caja de la tienda</h1>
+      <p class="tenue">Turno de {{ t.cajeroNombre }} desde {{ fechaHora(t.apertura) }} · {{ t.numeroVentas }} venta(s)</p>
+    </div>
+    <div class="acciones">
+      @if (ultimaFactura(); as f) {
+        <button class="btn btn-borde" type="button" (click)="verFactura(f)"><app-icono nombre="pdf" /> Última factura {{ f.numero }}</button>
+      }
+      <button class="btn btn-borde" type="button" (click)="cerrando.set(true)"><app-icono nombre="salir" /> Cerrar caja</button>
+    </div>
+  </div>
+
+  <div class="adm-resumen">
+    @for (f of formasPago; track f.codigo) {
+      <div class="adm-dato"><span>{{ f.nombre }}</span><strong>{{ dinero(t.ventasPorFormaPago[f.codigo] ?? 0) }}</strong></div>
+    }
+  </div>
+
+  <div class="rejilla" style="grid-template-columns:minmax(0,1fr)">
+    <div class="rejilla dos" style="align-items:start">
+      <!-- Izquierda: productos -->
+      <section class="tarjeta" style="grid-column:1 / -1">
+        <h3>Venta</h3>
+        <app-editor-lineas [productos]="productos()" [tipoCliente]="tipoCliente()" [(lineas)]="lineas" />
+      </section>
+
+      <!-- Cliente -->
+      <section class="tarjeta">
+        <h3>Cliente</h3>
+        <app-selector-cliente [(cliente)]="cliente" [permitirConsumidorFinal]="true" />
+        @if (excedeConsumidorFinal()) {
+          <div class="aviso peligro" style="margin-top:0.75rem"><span class="rn">RN-19</span> Pasa de $50: pide la cédula o el RUC del cliente para facturar.</div>
+        } @else if (!cliente()) {
+          <p class="tenue" style="font-size:0.82rem;margin-top:0.5rem">Sin cliente se factura a CONSUMIDOR FINAL (hasta $50).</p>
+        }
+        <label class="fila" style="margin-top:0.75rem;font-size:0.88rem">
+          <input type="checkbox" [checked]="enviarCorreo()" (change)="enviarCorreo.set(!enviarCorreo())" [disabled]="!cliente()?.correo" />
+          Enviar la factura al correo del cliente {{ cliente()?.correo ? '(' + cliente()!.correo + ')' : '' }}
+        </label>
+      </section>
+
+      <!-- Cobro -->
+      <section class="tarjeta">
+        <div class="fila entre"><h3 style="margin:0">Cobro</h3><span class="adm-totales"><span class="total">{{ dinero(totales().total) }}</span></span></div>
+        @for (p of pagos(); track $index; let i = $index) {
+          <div class="fila" style="margin-top:0.5rem;flex-wrap:nowrap">
+            <select [ngModel]="p.codigo" (ngModelChange)="cambiarPago(i, { codigo: $event })" aria-label="Forma de pago">
+              @for (f of formasPago; track f.codigo) {
+                <option [value]="f.codigo">{{ f.nombre }}</option>
+              }
+            </select>
+            <input type="number" min="0" step="0.01" [ngModel]="p.monto" (ngModelChange)="cambiarPago(i, { monto: +$event })" style="width:120px" aria-label="Monto" />
+            @if (i > 0) {
+              <button class="btn-icono" type="button" (click)="quitarPago(i)" aria-label="Quitar pago"><app-icono nombre="cerrar" [tam]="16" /></button>
+            }
+          </div>
+        }
+        <div class="acciones" style="margin-top:0.5rem">
+          <button class="btn btn-borde btn-sm" type="button" (click)="completarPago()">Poner el total</button>
+          <button class="btn btn-borde btn-sm" type="button" (click)="agregarPago()"><app-icono nombre="mas" [tam]="14" /> Otra forma de pago</button>
+        </div>
+        @if (efectivo() > 0) {
+          <div class="campo" style="margin-top:0.75rem">
+            <label for="recibido">Efectivo recibido (para calcular el cambio)</label>
+            <input id="recibido" type="number" min="0" step="0.01" [ngModel]="recibido()" (ngModelChange)="recibido.set($event === null || $event === '' ? null : +$event)" />
+            @if (recibido()) {
+              <strong [style.color]="cambio() < 0 ? 'var(--peligro)' : 'var(--exito)'">Cambio: {{ dinero(cambio()) }}</strong>
+            }
+          </div>
+        }
+        @if (lineas().length && sumaPagos() !== totales().total) {
+          <p class="error-campo">Los pagos suman {{ dinero(sumaPagos()) }} y el total es {{ dinero(totales().total) }}.</p>
+        }
+        <div class="acciones" style="margin-top:1rem">
+          <button class="btn btn-primario" type="button" style="flex:1" [disabled]="!puedeCobrar() || ocupado()" (click)="cobrar()"><app-icono nombre="factura" /> {{ ocupado() ? 'Emitiendo…' : 'Cobrar y facturar' }}</button>
+          <button class="btn btn-borde" type="button" (click)="nuevaVenta()">Limpiar</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Cierre de caja -->
+  @if (cerrando()) {
+    <app-modal titulo="Cerrar caja" (cerrar)="cerrando.set(false)">
+      <dl class="datos">
+        <dt>Fondo inicial</dt><dd>{{ dinero(t.montoInicial) }}</dd>
+        <dt>Ventas en efectivo</dt><dd>{{ dinero(t.ventasPorFormaPago['01'] ?? 0) }}</dd>
+        <dt><strong>Efectivo esperado</strong></dt><dd><strong>{{ dinero(esperado()) }}</strong></dd>
+      </dl>
+      <div class="campo" style="margin-top:1rem">
+        <label for="contado">Efectivo contado</label>
+        <input id="contado" type="number" min="0" step="0.01" [ngModel]="contado()" (ngModelChange)="contado.set(+$event)" />
+      </div>
+      @if (contado() !== null) {
+        <p [style.color]="contado()! - esperado() === 0 ? 'var(--exito)' : 'var(--peligro)'">Diferencia: {{ dinero(contado()! - esperado()) }}</p>
+      }
+      <div class="campo">
+        <label for="obs">Observaciones</label>
+        <textarea id="obs" rows="2" [ngModel]="observaciones()" (ngModelChange)="observaciones.set($event)"></textarea>
+      </div>
+      <button class="btn btn-primario" type="button" [disabled]="contado() === null || ocupado()" (click)="cerrar()">Cerrar turno</button>
+    </app-modal>
+  }
+}

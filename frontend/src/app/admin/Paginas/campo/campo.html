@@ -1,0 +1,100 @@
+<!-- campo.html → haciendas, parcelas, labores, cosechas, sanidad, clima y trabajadores -->
+
+<div class="encabezado-pagina">
+  <div><h1>Haciendas y cosechas</h1><p class="tenue">Cultivo propio de cacao y café: plan de labores, cosechas, sanidad y clima.</p></div>
+  @if (puedeRegistrar()) {
+    <div class="acciones">
+      <button class="btn btn-primario" type="button" (click)="registrando.set('COSECHA')"><app-icono nombre="grano" /> Registrar cosecha</button>
+      <button class="btn btn-borde" type="button" (click)="registrando.set('LABOR')"><app-icono nombre="campo" /> Registrar labor</button>
+    </div>
+  }
+</div>
+
+<nav class="pestanas">
+  @for (p of [['haciendas','Haciendas'],['parcelas','Parcelas'],['agenda','Agenda (' + agenda().length + ')'],['cosechas','Cosechas'],['labores','Labores'],['sanidad','Sanidad'],['clima','Clima'],['trabajadores','Trabajadores']]; track p[0]) {
+    <button type="button" [class.activa]="pestana() === p[0]" (click)="cambiar($any(p[0]))">{{ p[1] }}</button>
+  }
+</nav>
+
+@switch (pestana()) {
+  @case ('haciendas') {
+    <div class="rejilla tres">
+      @for (h of haciendas(); track h._id) {
+        <article class="tarjeta">
+          <div class="fila entre"><h3 style="margin:0">{{ h.nombre }}</h3><span class="tenue mono">{{ h.codigo }}</span></div>
+          <p class="tenue" style="font-size:0.85rem">{{ h.canton }} · {{ numero(h.altitudMsnm, 0) }} msnm · {{ h.responsable ?? '' }}</p>
+          <div class="adm-resumen" style="grid-template-columns:repeat(2,1fr);margin:0.5rem 0">
+            <div class="adm-dato"><span>Ha en producción</span><strong>{{ numero(h.hectareasProduccion ?? 0, 1) }}</strong></div>
+            <div class="adm-dato"><span>Parcelas</span><strong>{{ h.parcelas ?? 0 }}</strong></div>
+            <div class="adm-dato"><span>Kg secos (año)</span><strong>{{ numero(h.kgSecosAnio ?? 0, 0) }}</strong></div>
+            <div class="adm-dato"><span>Rendimiento</span><strong>{{ numero(h.rendimientoKgHa ?? 0, 0) }} <small>kg/ha</small></strong></div>
+          </div>
+          <p class="tenue" style="font-size:0.85rem;margin:0">Costo por kg seco: <strong>{{ h.costoPorKg ? dinero(h.costoPorKg) : '—' }}</strong></p>
+        </article>
+      }
+    </div>
+  }
+  @case ('parcelas') {
+    <app-tabla [filas]="parcelas()" [columnas]="columnasParcelas" [clicable]="true" (seleccion)="abrirParcela($event)" nombreArchivo="parcelas" />
+  }
+  @case ('agenda') {
+    <p class="tenue">Labores del plan que ya debían hacerse y parcelas en período de carencia (no se pueden cosechar, <span class="rn">RN-01</span>).</p>
+    <div class="rejilla tres">
+      @for (g of agenda(); track g.parcela._id) {
+        <a class="adm-ficha" [routerLink]="['/admin/campo/parcelas', g.parcela._id]">
+          <strong>{{ g.parcela.codigo }}</strong>
+          @for (t of g.atrasadas; track t.tipo) { <div>{{ texto(t.tipo) }} · <span style="color:var(--peligro)">{{ t.diasAtraso }} días de atraso</span></div> }
+          @if (g.bloqueo) { <div class="tenue">⛔ {{ g.bloqueo }}</div> }
+        </a>
+      } @empty {
+        <p class="tenue">Todo al día. 🌱</p>
+      }
+    </div>
+  }
+  @case ('cosechas') {
+    <app-tabla [filas]="cosechas()" [columnas]="columnasCosechas" nombreArchivo="cosechas" />
+  }
+  @case ('labores') {
+    <app-tabla [filas]="labores()" [columnas]="columnasLabores" nombreArchivo="labores" />
+  }
+  @case ('sanidad') {
+    @if (puedeRegistrar()) { <button class="btn btn-borde btn-sm" type="button" style="margin-bottom:0.75rem" (click)="registrando.set('SANIDAD')"><app-icono nombre="mas" [tam]="14" /> Registrar monitoreo</button> }
+    <app-tabla [filas]="monitoreos()" [columnas]="columnasSanidad" nombreArchivo="sanidad" />
+  }
+  @case ('clima') {
+    <div class="fila" style="margin-bottom:0.75rem">
+      <select style="width:auto" [ngModel]="haciendaClima()" (ngModelChange)="haciendaClima.set($event); cargarClima()" aria-label="Hacienda">
+        @for (h of haciendas(); track h._id) { <option [value]="h._id">{{ h.nombre }}</option> }
+      </select>
+      @if (puedeRegistrar() || auth.tieneRol('LOGISTICA', 'MANTENIMIENTO')) { <button class="btn btn-borde btn-sm" type="button" (click)="registrando.set('CLIMA')"><app-icono nombre="mas" [tam]="14" /> Registrar clima</button> }
+    </div>
+    <p class="tenue" style="font-size:0.82rem">Se guarda en una colección <em>time series</em> de MongoDB (optimizada para datos por fecha).</p>
+    <div class="rejilla dos">
+      <section class="tarjeta"><app-grafico [datos]="graficoClima()" [titulo]="'Lluvia de los últimos 90 días'" /></section>
+      <section class="tarjeta"><app-grafico [datos]="graficoTemperatura()" [titulo]="'Temperatura máxima y mínima'" /></section>
+    </div>
+  }
+  @case ('trabajadores') {
+    @if (puedeRegistrar()) { <button class="btn btn-borde btn-sm" type="button" style="margin-bottom:0.75rem" (click)="trabajador.set({ cargo: 'JORNALERO', jornalDiario: 25, activo: true })"><app-icono nombre="mas" [tam]="14" /> Nuevo trabajador</button> }
+    <app-tabla [filas]="trabajadores()" [columnas]="columnasTrabajadores" [clicable]="puedeRegistrar()" (seleccion)="trabajador.set($event)" nombreArchivo="trabajadores" />
+  }
+}
+
+@if (registrando(); as r) {
+  <app-modal [titulo]="r === 'COSECHA' ? 'Registrar cosecha' : r === 'LABOR' ? 'Registrar labor' : r === 'SANIDAD' ? 'Monitoreo sanitario' : 'Registro de clima'" ancho="ancho" (cerrar)="registrando.set(null)">
+    @if (r === 'COSECHA' || r === 'LABOR') {
+      @if (r === 'COSECHA') { <div class="aviso info">Al registrar la cosecha se crea el <strong>lote de grano</strong> que sigue a fermentación y secado (trazabilidad).</div> }
+      <app-formulario-campo [modo]="r" [parcelas]="parcelas()" [trabajadores]="trabajadores()" [insumosDisponibles]="insumos()" [ocupado]="ocupado()" (guardar)="registrar($event)" />
+    } @else if (r === 'SANIDAD') {
+      <app-formulario-dinamico [campos]="camposSanidad()" [ocupado]="ocupado()" (guardar)="registrar($event)" />
+    } @else {
+      <app-formulario-dinamico [campos]="camposClima()" [valores]="{ hacienda: haciendaClima() }" [ocupado]="ocupado()" (guardar)="registrar($event)" />
+    }
+  </app-modal>
+}
+
+@if (trabajador(); as t) {
+  <app-modal [titulo]="t._id ? 'Editar ' + t.nombre : 'Nuevo trabajador'" ancho="ancho" (cerrar)="trabajador.set(null)">
+    <app-formulario-dinamico [campos]="camposTrabajador()" [valores]="valoresTrabajador()" [ocupado]="ocupado()" (guardar)="guardarTrabajador($event)" />
+  </app-modal>
+}

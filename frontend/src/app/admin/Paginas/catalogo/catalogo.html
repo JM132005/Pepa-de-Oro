@@ -1,0 +1,73 @@
+<!-- catalogo.html → productos, precios y márgenes -->
+
+<div class="encabezado-pagina">
+  <div><h1>Catálogo y precios</h1><p class="tenue">Precios sin IVA. El margen se calcula con el costo promedio ponderado del inventario.</p></div>
+  @if (auth.esGerente()) {
+    <button class="btn btn-primario" type="button" (click)="nuevo()"><app-icono nombre="mas" /> Nuevo producto</button>
+  }
+</div>
+
+<div class="fila" style="margin-bottom:1rem">
+  <select style="width:auto" [ngModel]="tipo()" (ngModelChange)="tipo.set($event)" aria-label="Tipo">
+    <option value="">Todos los tipos</option>
+    @for (t of tipos; track t) { <option [value]="t">{{ texto(t) }}</option> }
+  </select>
+  <select style="width:auto" [ngModel]="familia()" (ngModelChange)="familia.set($event)" aria-label="Familia">
+    <option value="">Todas las familias</option>
+    @for (f of familias; track f) { <option [value]="f">{{ texto(f) }}</option> }
+  </select>
+</div>
+
+<app-tabla [filas]="filtrados()" [columnas]="columnas" [clicable]="true" (seleccion)="abrir($event)" nombreArchivo="catalogo-precios" />
+
+@if (detalle(); as p) {
+  <app-modal [titulo]="p.nombre" ancho="ancho" (cerrar)="detalle.set(null)">
+    <div class="rejilla dos">
+      <div>
+        <div style="aspect-ratio:4/3;border-radius:var(--radio);overflow:hidden;background:var(--crema);margin-bottom:0.75rem"><app-imagen [src]="p.imagen" [alt]="p.nombre" /></div>
+        <dl class="datos">
+          <dt>SKU</dt><dd class="mono">{{ p.sku }}</dd>
+          <dt>Familia / tipo</dt><dd>{{ texto(p.familia) }} · {{ texto(p.tipo) }}</dd>
+          <dt>Unidad</dt><dd>{{ texto(p.unidad) }}{{ p.pesoNetoG ? ' · ' + p.pesoNetoG + ' g' : '' }}</dd>
+          <dt>Vida útil</dt><dd>{{ p.vidaUtilDias ? p.vidaUtilDias + ' días' : '—' }}</dd>
+          <dt>Stock mínimo</dt><dd>{{ p.stockMinimo }}</dd>
+          <dt>Web</dt><dd>{{ p.publicado ? 'Publicado' : 'No publicado' }}{{ p.destacado ? ' · destacado' : '' }}{{ p.proximamente ? ' · próximamente' : '' }}</dd>
+        </dl>
+      </div>
+      <div>
+        <div class="adm-resumen" style="grid-template-columns:repeat(2,1fr)">
+          <div class="adm-dato"><span>Por menor</span><strong>{{ dinero(p.precioMenor) }}</strong></div>
+          <div class="adm-dato"><span>Por mayor (desde {{ p.cantidadMinimaMayor }})</span><strong>{{ dinero(p.precioMayor) }}</strong></div>
+          <div class="adm-dato"><span>Costo promedio</span><strong>{{ dinero(p.costoPromedio) }}</strong></div>
+          <div class="adm-dato" [class.peligro]="(p.margen ?? 0) < 20"><span>Margen</span><strong>{{ porcentaje(p.margen) }}</strong></div>
+        </div>
+        @if (p.escalas.length) {
+          <p class="tenue" style="font-size:0.85rem">Escalas: @for (e of p.escalas; track e.desde) { desde {{ e.desde }} → {{ dinero(e.precio) }}; }</p>
+        }
+        @if (p.stock; as s) {
+          <h3>Stock</h3>
+          <p>Físico {{ numero(s.fisico) }} · reservado {{ numero(s.reservado) }} · <strong>disponible {{ numero(s.disponible) }}</strong> <app-insignia [valor]="s.estado" /></p>
+          <p class="tenue" style="font-size:0.85rem">@for (b of s.porBodega | keyvalue; track b.key) { {{ b.key }}: {{ numero(+b.value) }} · }</p>
+        }
+        @if (p.historialPrecios.length) {
+          <h3>Historial de precios</h3>
+          <ul class="tenue" style="font-size:0.85rem">
+            @for (h of p.historialPrecios.slice(-6).reverse(); track $index) { <li>{{ fecha(h.fecha) }} · {{ dinero(h.precioMenor) }} / {{ dinero(h.precioMayor) }} — {{ h.usuario }}</li> }
+          </ul>
+        }
+      </div>
+    </div>
+    @if (auth.esGerente()) {
+      <div class="acciones" style="margin-top:1rem"><button class="btn btn-primario" type="button" (click)="editando.set(p)"><app-icono nombre="editar" /> Editar producto y precios</button></div>
+    }
+  </app-modal>
+}
+
+@if (editando(); as p) {
+  <app-modal [titulo]="p._id ? 'Editar ' + p.nombre : 'Nuevo producto'" ancho="ancho" (cerrar)="editando.set(null)">
+    @if (p._id) {
+      <div class="aviso oro">Cambiar precios es una acción sensible: queda en el historial de precios y en la bitácora de auditoría.</div>
+    }
+    <app-formulario-dinamico [campos]="campos" [valores]="p" [ocupado]="ocupado()" (guardar)="guardar($event)" />
+  </app-modal>
+}

@@ -1,0 +1,68 @@
+<!-- solicitudes.html → bandeja de solicitudes de la web -->
+
+<div class="encabezado-pagina">
+  <div><h1>Solicitudes web</h1><p class="tenue">Pedidos de cotización, alquiler, servicios y contacto que llegan desde la página pública.</p></div>
+  <select style="width:auto" [ngModel]="tipo()" (ngModelChange)="tipo.set($event); cargar()" aria-label="Tipo">
+    <option value="">Todos los tipos</option>
+    @for (t of tipos; track t) { <option [value]="t">{{ texto(t) }}</option> }
+  </select>
+</div>
+
+<div class="web-filtros">
+  @for (e of estados; track e) {
+    <button type="button" class="web-chip" [class.activo]="estado() === e" (click)="estado.set(e); cargar()">{{ texto(e) }}</button>
+  }
+  <button type="button" class="web-chip" [class.activo]="estado() === ''" (click)="estado.set(''); cargar()">Todas</button>
+</div>
+
+<app-tabla [filas]="lista()" [columnas]="columnas" [clicable]="true" (seleccion)="abrir($event)" nombreArchivo="solicitudes-web" vacio="No hay solicitudes en este estado" />
+
+@if (detalle(); as s) {
+  <app-modal [titulo]="'Solicitud ' + s.numero + ' · ' + texto(s.tipo)" ancho="ancho" (cerrar)="detalle.set(null)">
+    <div class="rejilla dos">
+      <dl class="datos">
+        <dt>Visitante</dt><dd>{{ s.nombre }}</dd>
+        @if (s.empresa) { <dt>Empresa</dt><dd>{{ s.empresa }}</dd> }
+        <dt>Correo</dt><dd><a [href]="'mailto:' + s.correo">{{ s.correo }}</a></dd>
+        @if (s.telefono) { <dt>Teléfono</dt><dd><a [href]="whatsapp(s.telefono)" target="_blank" rel="noopener">{{ s.telefono }}</a></dd> }
+        @if (s.ciudad) { <dt>Ciudad</dt><dd>{{ s.ciudad }}</dd> }
+        <dt>Recibida</dt><dd>{{ fechaHora(s.createdAt) }} ({{ hace(s.createdAt) }})</dd>
+        <dt>Estado</dt><dd><app-insignia [valor]="s.estado" /> · {{ s.asignadoA?.nombre ?? 'sin asignar' }}</dd>
+      </dl>
+      <div>
+        @if (s.mensaje) { <p style="white-space:pre-line" class="tarjeta">{{ s.mensaje }}</p> }
+        @if (s.items.length) {
+          <h3>Productos de interés</h3>
+          <ul>@for (i of s.items; track i.producto) { <li>{{ i.cantidad }} × {{ i.nombre }} <span class="tenue mono">{{ i.sku }}</span></li> }</ul>
+        }
+        @if (s.activo) { <p><strong>Equipo:</strong> {{ s.activo.nombre }} ({{ s.activo.codigo }}){{ s.desde ? ' · del ' + fecha(s.desde) + ' al ' + fecha(s.hasta) : '' }}</p> }
+        @if (s.servicio) { <p><strong>Servicio:</strong> {{ texto(s.servicio) }}</p> }
+      </div>
+    </div>
+
+    @if (s.notas.length) {
+      <h3 style="margin-top:1rem">Seguimiento</h3>
+      <ul class="tenue">@for (n of s.notas; track $index) { <li>{{ fechaHora(n.fecha) }} · {{ n.usuario }}: {{ n.texto }}</li> }</ul>
+    }
+
+    <div class="separador"></div>
+    <div class="fila">
+      <input style="flex:1;min-width:220px" placeholder="Agregar una nota (ej. Se le llamó por WhatsApp)" [ngModel]="nota()" (ngModelChange)="nota.set($event)" />
+      <button class="btn btn-borde" type="button" [disabled]="!nota().trim() || ocupado()" (click)="actualizar({ nota: nota(), estado: s.estado === 'NUEVA' ? 'EN_GESTION' : undefined })">Guardar nota</button>
+    </div>
+    <div class="acciones" style="margin-top:0.75rem">
+      @if (s.estado !== 'ATENDIDA') { <button class="btn btn-exito btn-sm" type="button" (click)="actualizar({ estado: 'ATENDIDA' })">Marcar atendida</button> }
+      @if (s.estado !== 'DESCARTADA') { <button class="btn btn-borde btn-sm" type="button" (click)="actualizar({ estado: 'DESCARTADA' })">Descartar</button> }
+    </div>
+
+    @if (s.tipo === 'COTIZACION' && !s.cotizacion) {
+      <div class="separador"></div>
+      <h3>Convertir en cotización</h3>
+      <p class="tenue" style="font-size:0.85rem">Elige el cliente (o créalo con los datos del visitante) y se arma la cotización con los productos pedidos.</p>
+      <app-selector-cliente [(cliente)]="cliente" [valoresNuevo]="valoresCliente()" />
+      <button class="btn btn-primario" type="button" style="margin-top:0.75rem" [disabled]="!cliente() || ocupado()" (click)="aCotizacion()"><app-icono nombre="cotizacion" /> Crear cotización</button>
+    } @else if (s.cotizacion) {
+      <div class="aviso exito" style="margin-top:0.75rem">Ya se creó una cotización a partir de esta solicitud.</div>
+    }
+  </app-modal>
+}

@@ -1,0 +1,145 @@
+<!-- mantenimiento.html → órdenes de trabajo, plan preventivo e indicadores del taller -->
+
+<div class="encabezado-pagina">
+  <div><h1>Mantenimiento</h1><p class="tenue">Taller propio para la planta, la flota y los clientes.</p></div>
+  <div class="acciones">
+    @if (auth.tieneRol('MANTENIMIENTO', 'AGRONOMO', 'ACOPIO', 'PRODUCCION', 'LOGISTICA')) {
+      <button class="btn btn-borde" type="button" (click)="falla.set({ activo: '', descripcion: '', prioridad: 'MEDIA' })"><app-icono nombre="alerta" /> Reportar falla</button>
+    }
+    @if (auth.tieneRol('MANTENIMIENTO', 'VENTAS')) {
+      <button class="btn btn-primario" type="button" (click)="servicio.set({ descripcion: '', marca: '', serie: '', falla: '' }); clienteServicio.set(null)"><app-icono nombre="mantenimiento" /> Servicio a cliente</button>
+    }
+  </div>
+</div>
+
+<div class="adm-resumen">
+  <div class="adm-dato"><span>Órdenes abiertas</span><strong>{{ ordenes().length }}</strong></div>
+  <div class="adm-dato" [class.peligro]="vencidas() > 0"><span>Preventivos vencidos <span class="rn">RN-26</span></span><strong>{{ vencidas() }}</strong></div>
+</div>
+
+<nav class="pestanas">
+  <button type="button" [class.activa]="pestana() === 'ordenes'" (click)="cambiar('ordenes')">Órdenes de trabajo</button>
+  <button type="button" [class.activa]="pestana() === 'plan'" (click)="cambiar('plan')">Plan preventivo</button>
+  <button type="button" [class.activa]="pestana() === 'indicadores'" (click)="cambiar('indicadores')">Indicadores</button>
+</nav>
+
+@switch (pestana()) {
+  @case ('ordenes') {
+    <div class="web-filtros">
+      @for (e of [['ABIERTA,EN_PROCESO,ESPERANDO_REPUESTO','Abiertas'],['TERMINADA','Terminadas'],['CANCELADA','Canceladas'],['','Todas']]; track e[0]) {
+        <button type="button" class="web-chip" [class.activo]="estado() === e[0]" (click)="estado.set(e[0]); cargar()">{{ e[1] }}</button>
+      }
+    </div>
+    <app-tabla [filas]="ordenes()" [columnas]="columnas" [clicable]="true" (seleccion)="abrir($event)" nombreArchivo="ordenes-mantenimiento" />
+  }
+  @case ('plan') {
+    @if (esTaller()) { <button class="btn btn-borde btn-sm" type="button" style="margin-bottom:0.75rem" [disabled]="ocupado()" (click)="generarPreventivos()"><app-icono nombre="check" [tam]="14" /> Generar órdenes de lo vencido</button> }
+    <app-tabla [filas]="plan()" [columnas]="columnasPlan" nombreArchivo="plan-preventivo" />
+    <p class="tenue" style="font-size:0.8rem"><span class="rn">RN-26</span> El preventivo se genera al cumplir el tiempo o el uso (horas o km), lo que llegue primero. El sistema lo revisa solo cada mañana.</p>
+  }
+  @case ('indicadores') {
+    <section class="tarjeta" style="margin-bottom:1rem"><app-grafico [datos]="graficoDisponibilidad()" [titulo]="'Activos con menor disponibilidad (últimos 180 días)'" [alto]="340" /></section>
+    <app-tabla [filas]="indicadores()" [columnas]="columnasIndicadores" nombreArchivo="indicadores-taller" />
+    <p class="tenue" style="font-size:0.8rem">MTBF = horas de operación ÷ fallas · MTTR = horas de reparación ÷ fallas · Disponibilidad = horas operativas ÷ horas totales.</p>
+  }
+}
+
+<!-- Detalle de la orden -->
+@if (detalle(); as o) {
+  <app-modal [titulo]="'Orden ' + o.codigo + ' · ' + texto(o.tipo)" ancho="ancho" (cerrar)="detalle.set(null)">
+    <div class="fila entre" style="margin-bottom:0.75rem">
+      <div><strong>{{ o.activo ? o.activo.codigo + ' · ' + o.activo.nombre : o.equipoCliente?.descripcion + ' de ' + o.cliente?.nombre }}</strong> · <app-insignia [valor]="o.estado" /> <app-insignia [valor]="o.prioridad" /></div>
+      <button class="btn btn-borde btn-sm" type="button" (click)="pdf(o)"><app-icono nombre="pdf" /> Orden de trabajo</button>
+    </div>
+    <dl class="datos">
+      @if (o.tarea) { <dt>Tarea</dt><dd>{{ o.tarea }}</dd> }
+      @if (o.falla) { <dt>Falla</dt><dd>{{ o.falla.descripcion }} (reportó {{ o.falla.reportadoPor }}, {{ fechaHora(o.falla.fecha) }})</dd> }
+      <dt>Técnico</dt><dd>{{ o.tecnico?.nombre ?? 'Sin asignar' }}</dd>
+      @if (o.inicio) { <dt>Inicio / fin</dt><dd>{{ fechaHora(o.inicio) }} {{ o.fin ? '→ ' + fechaHora(o.fin) : '' }}</dd> }
+      @if (o.presupuesto) { <dt>Presupuesto</dt><dd>{{ dinero(o.presupuesto.total) }} · {{ o.presupuesto.aprobado ? 'aprobado' : 'pendiente' }}</dd> }
+    </dl>
+    @if (o.repuestos.length) {
+      <h3 style="margin-top:0.75rem">Repuestos</h3>
+      <ul>@for (r of o.repuestos; track $index) { <li>{{ r.cantidad }} × {{ r.nombre }} · {{ dinero(r.cantidad * r.costoUnitario) }}</li> }</ul>
+    }
+    @if (o.estado === 'TERMINADA') {
+      <p>Mano de obra {{ o.horasManoObra }} h · repuestos {{ dinero(o.costos.costoRepuestos ?? 0) }} · <strong>total {{ dinero(o.costos.costoTotal ?? 0) }}</strong></p>
+      @if (o.tipo === 'SERVICIO_CLIENTE' && !o.factura && auth.tieneRol('VENTAS', 'MANTENIMIENTO')) {
+        <button class="btn btn-exito" type="button" [disabled]="ocupado()" (click)="facturar(o)"><app-icono nombre="factura" /> Facturar al cliente</button>
+      }
+      @if (o.factura) { <p class="tenue">Facturada: {{ o.factura.numero }}</p> }
+    }
+
+    @if (esTaller() && !['TERMINADA', 'CANCELADA'].includes(o.estado)) {
+      <div class="separador"></div>
+      @if (o.tipo === 'SERVICIO_CLIENTE') {
+        <div class="fila" style="margin-bottom:0.75rem">
+          <label class="tenue">Presupuesto (USD)</label>
+          <input type="number" min="0" style="width:120px" [ngModel]="presupuesto()" (ngModelChange)="presupuesto.set(+$event)" />
+          <button class="btn btn-borde btn-sm" type="button" (click)="guardarPresupuesto(o, false)">Guardar</button>
+          <button class="btn btn-borde btn-sm" type="button" (click)="guardarPresupuesto(o, true)">El cliente aprobó</button>
+        </div>
+      }
+      <div class="fila" style="margin-bottom:0.75rem">
+        <input style="flex:1;min-width:200px" placeholder="Nombre del técnico" [ngModel]="tecnico()" (ngModelChange)="tecnico.set($event)" />
+        <button class="btn btn-borde btn-sm" type="button" (click)="asignar(o)">Asignar</button>
+        @if (o.estado !== 'EN_PROCESO') { <button class="btn btn-primario btn-sm" type="button" (click)="accion(o, 'iniciar')">Iniciar</button> }
+        @if (o.estado === 'EN_PROCESO') { <button class="btn btn-borde btn-sm" type="button" (click)="accion(o, 'esperar-repuesto')">Esperando repuesto</button> }
+      </div>
+      <div class="fila" style="margin-bottom:0.75rem;flex-wrap:nowrap">
+        <select style="flex:1" [ngModel]="repuesto()" (ngModelChange)="repuesto.set($event)" aria-label="Repuesto">
+          <option value="">— Repuesto —</option>
+          @for (p of repuestos(); track p._id) { <option [value]="p._id">{{ p.nombre }} (stock {{ p.stock?.disponible ?? 0 }})</option> }
+        </select>
+        <input type="number" min="0.001" step="any" style="width:90px" [ngModel]="cantidadRepuesto()" (ngModelChange)="cantidadRepuesto.set(+$event)" aria-label="Cantidad" />
+        <button class="btn btn-borde btn-sm" type="button" [disabled]="!repuesto()" (click)="agregarRepuesto(o)">Agregar</button>
+      </div>
+      <h3>Cerrar la orden</h3>
+      @for (t of checklist(); track $index; let i = $index) {
+        <label class="fila"><input type="checkbox" [checked]="t.hecha" (change)="marcarTarea(i)" /> {{ t.tarea }}</label>
+      }
+      <div class="rejilla-form" style="margin-top:0.5rem">
+        <div class="campo"><label for="hm">Horas de mano de obra</label><input id="hm" type="number" min="0" step="0.5" [ngModel]="horas()" (ngModelChange)="horas.set(+$event)" /></div>
+        @if (o.activo) { <div class="campo"><label for="uc">{{ o.activo.odometro ? 'Odómetro (km)' : 'Horómetro (h)' }} al cerrar</label><input id="uc" type="number" min="0" [ngModel]="usoCierre()" (ngModelChange)="usoCierre.set(+$event)" /></div> }
+      </div>
+      <div class="acciones">
+        <button class="btn btn-exito" type="button" [disabled]="ocupado()" (click)="terminar(o)">Terminar orden</button>
+        <button class="btn btn-borde" type="button" [disabled]="ocupado()" (click)="accion(o, 'cancelar')">Cancelar orden</button>
+      </div>
+    }
+  </app-modal>
+}
+
+<!-- Reportar falla -->
+@if (falla(); as f) {
+  <app-modal titulo="Reportar una falla" (cerrar)="falla.set(null)">
+    <div class="campo">
+      <label for="fa">Equipo</label>
+      <select id="fa" [ngModel]="f.activo" (ngModelChange)="falla.set({ activo: $event, descripcion: f.descripcion, prioridad: f.prioridad })">
+        <option value="">— Elegir —</option>
+        @for (a of activos(); track a._id) { <option [value]="a._id">{{ a.codigo }} · {{ a.nombre }}</option> }
+      </select>
+    </div>
+    <div class="campo"><label for="fd">¿Qué pasa?</label><textarea id="fd" rows="3" [ngModel]="f.descripcion" (ngModelChange)="falla.set({ activo: f.activo, descripcion: $event, prioridad: f.prioridad })"></textarea></div>
+    <div class="campo">
+      <label for="fp">Prioridad</label>
+      <select id="fp" [ngModel]="f.prioridad" (ngModelChange)="falla.set({ activo: f.activo, descripcion: f.descripcion, prioridad: $event })">@for (p of ['BAJA', 'MEDIA', 'ALTA', 'URGENTE']; track p) { <option [value]="p">{{ texto(p) }}</option> }</select>
+    </div>
+    <p class="tenue" style="font-size:0.82rem"><span class="rn">RN-24</span> El equipo queda EN MANTENIMIENTO y no se podrá usar, alquilar ni asignar hasta que el taller termine.</p>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado() || !f.activo || f.descripcion.trim().length < 5" (click)="reportarFalla()">Reportar</button>
+  </app-modal>
+}
+
+<!-- Servicio a cliente -->
+@if (servicio(); as s) {
+  <app-modal titulo="Servicio de taller a un cliente" ancho="ancho" (cerrar)="servicio.set(null)">
+    <app-selector-cliente [(cliente)]="clienteServicio" tipoPorDefecto="MAYORISTA" />
+    <div class="rejilla-form" style="margin-top:0.75rem">
+      <div class="campo"><label for="sd">Equipo del cliente</label><input id="sd" placeholder="Ej: Bomba de riego" [ngModel]="s.descripcion" (ngModelChange)="servicio.set({ descripcion: $event, marca: s.marca, serie: s.serie, falla: s.falla })" /></div>
+      <div class="campo"><label for="sm">Marca</label><input id="sm" [ngModel]="s.marca" (ngModelChange)="servicio.set({ descripcion: s.descripcion, marca: $event, serie: s.serie, falla: s.falla })" /></div>
+      <div class="campo"><label for="ss">Serie</label><input id="ss" [ngModel]="s.serie" (ngModelChange)="servicio.set({ descripcion: s.descripcion, marca: s.marca, serie: $event, falla: s.falla })" /></div>
+      <div class="campo ancho-completo"><label for="sf">Falla o servicio pedido</label><textarea id="sf" rows="2" [ngModel]="s.falla" (ngModelChange)="servicio.set({ descripcion: s.descripcion, marca: s.marca, serie: s.serie, falla: $event })"></textarea></div>
+    </div>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado() || !clienteServicio() || !s.descripcion || s.falla.trim().length < 5" (click)="crearServicio()">Crear orden de servicio</button>
+  </app-modal>
+}

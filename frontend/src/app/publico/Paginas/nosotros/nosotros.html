@@ -1,0 +1,109 @@
+<!-- nosotros.html → quiénes somos -->
+
+<section class="web-seccion crema">
+  <div class="web-contenedor rejilla dos" style="align-items:center">
+    <div>
+      <span class="antetitulo">Quiénes somos</span>
+      <h1>La pepa de oro, cultivada en El Oro</h1>
+      @for (p of datos()?.historia ?? []; track $index) {
+        <p>{{ p }}</p>
+      }
+    </div>
+    <div style="aspect-ratio:4/3;border-radius:var(--radio);overflow:hidden">
+      <app-imagen src="img/banners/haciendas.svg" alt="Haciendas de cacao de Pepa de Oro" [perezosa]="false" />
+    </div>
+  </div>
+</section>
+
+@if (datos(); as d) {
+  <!-- Misión y visión -->
+  <section class="web-seccion">
+    <div class="web-contenedor rejilla dos">
+      <article class="tarjeta">
+        <span class="antetitulo">Misión</span>
+        <p style="font-family:var(--fuente-titulos);font-size:1.15rem">{{ d.mision }}</p>
+      </article>
+      <article class="tarjeta">
+        <span class="antetitulo">Visión</span>
+        <p style="font-family:var(--fuente-titulos);font-size:1.15rem">{{ d.vision }}</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Valores -->
+  <section class="web-seccion crema">
+    <div class="web-contenedor">
+      <div class="web-titulo-seccion"><span class="antetitulo">Valores</span><h2>Lo que nos guía</h2></div>
+      <div class="web-lineas">
+        @for (v of d.valores; track v.titulo) {
+          <article class="web-linea">
+            <div class="icono-circulo"><app-icono nombre="hoja" [tam]="22" /></div>
+            <h3>{{ v.titulo }}</h3>
+            <p class="tenue">{{ v.texto }}</p>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+}
+
+<!-- Haciendas: datos reales de la base (hectáreas, cultivos, altitud) con su mapa -->
+@if (sitio.empresa(); as e) {
+  <section class="web-seccion">
+    <div class="web-contenedor">
+      <div class="web-titulo-seccion">
+        <span class="antetitulo">Nuestras haciendas</span>
+        <h2>{{ e.cifras.haciendas }} haciendas, {{ numero(e.cifras.hectareas, 0) }} hectáreas cultivadas</h2>
+      </div>
+      <div class="rejilla tres">
+        @for (h of e.haciendas; track h._id) {
+          <article class="web-equipo">
+            @if (h.ubicacion) {
+              <iframe class="web-mapa" style="border-radius:0;border:none;height:200px" [src]="mapa(h.ubicacion.lat, h.ubicacion.lng)" [title]="'Mapa de ' + h.nombre" loading="lazy"></iframe>
+            }
+            <div class="info">
+              <h3>{{ h.nombre }}</h3>
+              <span class="tenue">{{ h.canton }} · {{ numero(h.altitudMsnm, 0) }} msnm</span>
+              <p style="margin:0">{{ h.descripcion }}</p>
+              <p class="tenue" style="margin:0;font-size:0.85rem">
+                {{ numero(h.hectareasCultivadas, 1) }} de {{ numero(h.hectareasTotales, 1) }} ha cultivadas ·
+                @for (c of h.cultivos; track c; let ultimo = $last) {
+                  {{ texto(c) }}{{ ultimo ? '' : ', ' }}
+                }
+              </p>
+            </div>
+          </article>
+        }
+      </div>
+
+      @if (certificaciones().length) {
+        <div class="tarjeta" style="margin-top:1.5rem">
+          <h3>Certificaciones</h3>
+          <div class="web-notas">
+            @for (c of certificaciones(); track c) {
+              <span class="web-nota">{{ texto(c) }}</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+}
+
+<!-- Equipo -->
+@if (datos()?.equipo?.length) {
+  <section class="web-seccion crema">
+    <div class="web-contenedor">
+      <div class="web-titulo-seccion"><span class="antetitulo">Equipo</span><h2>Las personas detrás de cada lote</h2></div>
+      <div class="web-lineas">
+        @for (p of datos()!.equipo; track p.nombre) {
+          <article class="web-linea" style="text-align:center">
+            <div class="icono-circulo" style="margin-inline:auto;font:700 1rem var(--fuente-titulos)">{{ iniciales(p.nombre) }}</div>
+            <h3 style="margin-bottom:0.2rem">{{ p.nombre }}</h3>
+            <span class="tenue">{{ p.cargo }}</span>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+}

@@ -1,0 +1,38 @@
+<!-- contenido-web.html → editor del contenido de la página pública -->
+
+<div class="encabezado-pagina">
+  <div><h1>Contenido web</h1><p class="tenue">Textos, banners y testimonios de la página pública. Los productos visibles se eligen en Catálogo («Publicado en la web»).</p></div>
+</div>
+
+<div class="rejilla" style="grid-template-columns:minmax(0,1fr)">
+  <div class="fila" style="align-items:flex-start;gap:1rem;flex-wrap:wrap">
+    <nav style="display:grid;gap:0.4rem;min-width:200px">
+      @for (c of contenidos(); track c.clave) {
+        <button type="button" class="adm-ficha" style="text-align:left;cursor:pointer" [style.border-color]="elegido()?.clave === c.clave ? 'var(--oro-500)' : null" (click)="elegir(c)">
+          <strong>{{ c.titulo }}</strong><br /><span class="tenue mono">{{ c.clave }}</span>
+        </button>
+      }
+    </nav>
+
+    @if (elegido(); as c) {
+      <section class="tarjeta" style="flex:1;min-width:280px">
+        <div class="fila entre">
+          <div class="campo" style="flex:1;margin:0"><label for="tit">Título</label><input id="tit" [ngModel]="titulo()" (ngModelChange)="titulo.set($event)" /></div>
+          <a class="btn btn-borde btn-sm" [href]="rutas[c.clave] ?? '/'" target="_blank" rel="noopener"><app-icono nombre="web" [tam]="16" /> Ver en la web</a>
+        </div>
+        @if (c.updatedAt) { <p class="tenue" style="font-size:0.8rem;margin-top:0.4rem">Última edición: {{ fechaHora(c.updatedAt) }}{{ c.actualizadoPor ? ' por ' + c.actualizadoPor : '' }}</p> }
+        <div class="campo">
+          <label for="json">Datos (JSON)</label>
+          <textarea id="json" rows="22" class="mono" spellcheck="false" [ngModel]="texto()" (ngModelChange)="texto.set($event)" style="font-size:0.82rem;line-height:1.45"></textarea>
+          @if (errorJson(); as e) { <span class="error-campo">JSON no válido: {{ e }}</span> }
+        </div>
+        <p class="tenue" style="font-size:0.8rem">Consejo: cambia solo los textos entre comillas. Las imágenes son rutas dentro de <span class="mono">frontend/public/img</span>.</p>
+        <div class="acciones">
+          <button class="btn btn-primario" type="button" [disabled]="ocupado() || !!errorJson()" (click)="guardar()">Publicar cambios</button>
+          <button class="btn btn-borde" type="button" [disabled]="!!errorJson()" (click)="formatear()">Ordenar el texto</button>
+          <button class="btn btn-borde" type="button" (click)="elegir(c)">Descartar cambios</button>
+        </div>
+      </section>
+    }
+  </div>
+</div>

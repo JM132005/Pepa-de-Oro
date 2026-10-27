@@ -1,0 +1,213 @@
+<!-- produccion.html → órdenes, tablero, recetas y simulador -->
+
+<div class="encabezado-pagina">
+  <div><h1>Producción</h1><p class="tenue">Cacao → nibs → pasta → chocolate, cobertura, manteca y cacao en polvo; café → tostado → molido.</p></div>
+  @if (puedeProducir()) {
+    <button class="btn btn-primario" type="button" (click)="creando.set(true)"><app-icono nombre="mas" /> Nueva orden</button>
+  }
+</div>
+
+<nav class="pestanas">
+  <button type="button" [class.activa]="pestana() === 'ordenes'" (click)="cambiar('ordenes')">Órdenes</button>
+  <button type="button" [class.activa]="pestana() === 'tablero'" (click)="cambiar('tablero')">Tablero semanal</button>
+  <button type="button" [class.activa]="pestana() === 'recetas'" (click)="cambiar('recetas')">Recetas</button>
+  <button type="button" [class.activa]="pestana() === 'simulador'" (click)="cambiar('simulador')">¿Qué pasa si…?</button>
+</nav>
+
+@switch (pestana()) {
+  @case ('ordenes') {
+    <div class="web-filtros">
+      @for (e of [['PLANIFICADA,EN_PROCESO','Abiertas'],['TERMINADA','Terminadas'],['ANULADA','Anuladas'],['','Todas']]; track e[0]) {
+        <button type="button" class="web-chip" [class.activo]="estado() === e[0]" (click)="estado.set(e[0]); cargar()">{{ e[1] }}</button>
+      }
+    </div>
+    <app-tabla [filas]="ordenes()" [columnas]="columnas" [clicable]="true" (seleccion)="abrir($event)" nombreArchivo="ordenes-produccion" />
+  }
+  @case ('tablero') {
+    <div class="fila" style="margin-bottom:0.75rem">
+      <button class="btn btn-borde btn-sm" type="button" (click)="moverSemana(-7)">← Semana anterior</button>
+      <strong>Semana del {{ fecha(semana()) }}</strong>
+      <button class="btn btn-borde btn-sm" type="button" (click)="moverSemana(7)">Semana siguiente →</button>
+    </div>
+    @if (tablero(); as t) {
+      <div class="tabla-contenedor">
+        <table>
+          <thead><tr><th>Máquina</th>@for (d of dias(); track d) { <th>{{ fecha(d).slice(0, 5) }}</th> }</tr></thead>
+          <tbody>
+            @for (m of t.maquinas; track m._id) {
+              <tr>
+                <td><strong>{{ m.codigo }}</strong><br /><span class="tenue" style="font-size:0.75rem">{{ m.nombre }}</span> @if (m.estado === 'EN_MANTENIMIENTO') { <app-insignia [valor]="m.estado" /> }</td>
+                @for (d of dias(); track d) {
+                  <td style="vertical-align:top;min-width:110px">
+                    @for (o of ordenesDe(m._id, d); track o._id) {
+                      <button type="button" class="adm-ficha" style="padding:0.3rem 0.4rem;font-size:0.75rem;cursor:pointer;width:100%;text-align:left" (click)="abrir(o)">{{ o.codigo }}<br />{{ o.producto.nombre }} · {{ o.cantidadPlanificada }} <app-insignia [valor]="o.estado" /></button>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+            <tr>
+              <td class="tenue">Sin máquina asignada</td>
+              @for (d of dias(); track d) {
+                <td style="vertical-align:top">@for (o of sinMaquina(d); track o._id) { <button type="button" class="adm-ficha" style="padding:0.3rem 0.4rem;font-size:0.75rem;cursor:pointer;width:100%;text-align:left" (click)="abrir(o)">{{ o.codigo }}<br />{{ o.producto.nombre }}</button> }</td>
+              }
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+  @case ('recetas') {
+    <app-tabla [filas]="recetas()" [columnas]="columnasRecetas" [clicable]="true" (seleccion)="receta.set($event)" nombreArchivo="recetas" />
+  }
+  @case ('simulador') {
+    <div class="tarjeta" style="max-width:900px">
+      <h3>Simulador «¿qué pasa si?»</h3>
+      <p class="tenue">Ej: «vender 2 000 barras de chocolate 70 %» → cuánto grano, cuántas horas de máquina y qué costo y margen implica. Baja por todas las recetas hasta la materia prima.</p>
+      <div class="fila">
+        <select style="flex:1;min-width:240px" [ngModel]="simProducto()" (ngModelChange)="simProducto.set($event)" aria-label="Producto">
+          <option value="">— Producto —</option>
+          @for (r of recetas(); track r._id) { <option [value]="r.producto._id">{{ r.producto.nombre }}</option> }
+        </select>
+        <input type="number" min="1" style="width:130px" [ngModel]="simCantidad()" (ngModelChange)="simCantidad.set(+$event)" aria-label="Cantidad" />
+        <button class="btn btn-primario" type="button" [disabled]="!simProducto()" (click)="simular()">Simular</button>
+      </div>
+      @if (simulacion(); as s) {
+        <div class="adm-resumen" style="margin-top:1rem">
+          <div class="adm-dato"><span>Costo total</span><strong>{{ dinero(s.costoTotal) }}</strong></div>
+          <div class="adm-dato"><span>Costo por unidad</span><strong>{{ dinero(s.costoUnitario) }}</strong></div>
+          <div class="adm-dato"><span>Ingreso (precio por menor)</span><strong>{{ dinero(s.ingresoPorMenor) }}</strong></div>
+          <div class="adm-dato" [class.exito]="s.margenPct >= 30" [class.peligro]="s.margenPct < 15"><span>Margen</span><strong>{{ porcentaje(s.margenPct) }}</strong></div>
+          <div class="adm-dato"><span>Horas de máquina</span><strong>{{ numero(s.horas.maquina) }}</strong></div>
+          <div class="adm-dato"><span>Horas de mano de obra</span><strong>{{ numero(s.horas.manoObra) }}</strong></div>
+        </div>
+        <div class="tabla-contenedor">
+          <table>
+            <thead><tr><th>Material</th><th class="num">Necesita</th><th class="num">Disponible</th><th class="num">Falta comprar/producir</th><th class="num">Costo</th></tr></thead>
+            <tbody>
+              @for (m of s.materiales; track m.productoId) {
+                <tr><td>{{ m.nombre }}</td><td class="num">{{ numero(m.necesita) }} {{ m.unidad?.toLowerCase() }}</td><td class="num">{{ numero(m.disponible) }}</td><td class="num" [style.color]="m.falta > 0 ? 'var(--peligro)' : null">{{ numero(m.falta) }}</td><td class="num">{{ dinero(m.costo) }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+}
+
+<!-- Nueva orden -->
+@if (creando()) {
+  <app-modal titulo="Nueva orden de producción" ancho="ancho" (cerrar)="creando.set(false)">
+    <div class="rejilla-form">
+      <div class="campo ancho-completo">
+        <label for="np">Producto (con receta)</label>
+        <select id="np" [ngModel]="productoNuevo()" (ngModelChange)="productoNuevo.set($event); verificacion.set(null)">
+          <option value="">— Elegir —</option>
+          @for (r of recetas(); track r._id) { <option [value]="r.producto._id">{{ r.producto.nombre }} (rinde {{ r.cantidadBase }} por tanda)</option> }
+        </select>
+      </div>
+      <div class="campo"><label for="nc">Cantidad</label><input id="nc" type="number" min="1" [ngModel]="cantidadNueva()" (ngModelChange)="cantidadNueva.set(+$event); verificacion.set(null)" /></div>
+      <div class="campo"><label for="nf">Fecha programada</label><input id="nf" type="date" [ngModel]="fechaNueva()" (ngModelChange)="fechaNueva.set($event)" /></div>
+      <div class="campo ancho-completo">
+        <label for="nm">Máquina <span class="rn">RN-24</span></label>
+        <select id="nm" [ngModel]="maquinaNueva()" (ngModelChange)="maquinaNueva.set($event)">
+          <option value="">Sin asignar</option>
+          @for (m of maquinasPosibles(); track m._id) { <option [value]="m._id">{{ m.codigo }} · {{ m.nombre }} ({{ texto(m.estado) }})</option> }
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-borde btn-sm" type="button" [disabled]="!productoNuevo()" (click)="verificar()"><app-icono nombre="check" [tam]="14" /> Verificar insumos (RN-09)</button>
+    @if (verificacion(); as v) {
+      <div class="tabla-contenedor" style="margin-top:0.75rem">
+        <table>
+          <thead><tr><th>Insumo</th><th class="num">Requerido</th><th class="num">Disponible</th></tr></thead>
+          <tbody>
+            @for (r of v.requerimientos; track r.productoId) {
+              <tr><td>{{ r.nombre }}</td><td class="num">{{ numero(r.requerido) }} {{ r.unidad.toLowerCase() }}</td><td class="num" [style.color]="r.disponible < r.requerido ? 'var(--peligro)' : 'var(--exito)'">{{ numero(r.disponible) }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="aviso" [class.exito]="v.puedeIniciar" [class.peligro]="!v.puedeIniciar" style="margin-top:0.5rem">{{ v.puedeIniciar ? 'Hay insumos suficientes: la orden puede iniciar.' : v.mensaje }}</div>
+    }
+    <div class="acciones" style="justify-content:flex-end;margin-top:0.75rem">
+      <button class="btn btn-primario" type="button" [disabled]="ocupado() || !productoNuevo() || cantidadNueva() <= 0" (click)="crear()">Planificar orden</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Detalle de una orden -->
+@if (detalle(); as o) {
+  <app-modal [titulo]="'Orden ' + o.codigo" ancho="ancho" (cerrar)="detalle.set(null)">
+    <div class="fila entre" style="margin-bottom:0.75rem">
+      <div><strong>{{ o.producto.nombre }}</strong> · {{ numero(o.cantidadPlanificada) }} planificadas · <app-insignia [valor]="o.estado" /></div>
+      <span class="tenue">{{ o.maquina ? o.maquina.codigo + ' · ' + o.maquina.nombre : 'Sin máquina' }} · {{ fecha(o.fechaProgramada) }}</span>
+    </div>
+    <div class="tabla-contenedor">
+      <table>
+        <thead><tr><th>Insumo</th><th class="num">Requerido</th><th>Reservado / consumido (lotes)</th></tr></thead>
+        <tbody>
+          @for (r of o.requerimientos; track r.producto) {
+            <tr>
+              <td>{{ r.nombre }}</td>
+              <td class="num">{{ numero(r.requerido) }} {{ r.unidad.toLowerCase() }}</td>
+              <td class="mono" style="font-size:0.78rem">
+                @for (c of (o.estado === 'TERMINADA' ? o.consumos : o.reservas); track $index) { @if (c.producto === r.producto) { {{ c.codigo }} ({{ numero(c.cantidad) }}) } }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (o.estado === 'TERMINADA') {
+      <div class="adm-resumen" style="margin-top:1rem">
+        <div class="adm-dato"><span>Producidas / buenas</span><strong>{{ o.cantidadProducida }} / {{ o.cantidadBuena }}</strong></div>
+        <div class="adm-dato"><span>Merma</span><strong>{{ porcentaje(o.mermaPct) }}</strong></div>
+        <div class="adm-dato"><span>Materiales</span><strong>{{ dinero(o.costos.materiales) }}</strong></div>
+        <div class="adm-dato"><span>Mano de obra + máquina</span><strong>{{ dinero((o.costos.manoObra ?? 0) + (o.costos.maquina ?? 0)) }}</strong></div>
+        <div class="adm-dato"><span>Costo unitario</span><strong>{{ dinero(o.costos.unitario) }}</strong></div>
+      </div>
+      @if (o.loteProducto) {
+        <p>Lote creado: <strong class="mono">{{ o.loteProducto.codigo }}</strong>{{ o.loteProducto.vencimiento ? ' · vence ' + fecha(o.loteProducto.vencimiento) : '' }}</p>
+        <button class="btn btn-borde btn-sm" type="button" (click)="etiquetas(o)"><app-icono nombre="qr" /> Etiquetas con QR</button>
+      }
+    }
+    @if (puedeProducir()) {
+      <div class="acciones" style="margin-top:1rem">
+        @if (o.estado === 'PLANIFICADA') { <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="iniciar(o)">Iniciar (reserva insumos)</button> }
+        @if (o.estado === 'EN_PROCESO' && !cerrando()) { <button class="btn btn-exito" type="button" (click)="cerrando.set(true)">Cerrar orden</button> }
+        @if (o.estado === 'PLANIFICADA' || o.estado === 'EN_PROCESO') { <button class="btn btn-borde" type="button" [disabled]="ocupado()" (click)="anular(o)">Anular</button> }
+      </div>
+      @if (cerrando()) {
+        <div class="tarjeta" style="margin-top:0.75rem">
+          <h3>Cierre <span class="rn">RN-10</span></h3>
+          <div class="rejilla-form tres">
+            <div class="campo"><label for="cp">Unidades producidas</label><input id="cp" type="number" min="0" [ngModel]="producidas()" (ngModelChange)="producidas.set(+$event)" /></div>
+            <div class="campo"><label for="cb">Unidades buenas</label><input id="cb" type="number" min="0" [max]="producidas()" [ngModel]="buenas()" (ngModelChange)="buenas.set(+$event)" /></div>
+            <div class="campo"><label for="ce">Empaque</label><input id="ce" [ngModel]="empaque()" (ngModelChange)="empaque.set($event)" /></div>
+          </div>
+          @if (buenas() > producidas()) { <p class="error-campo">Las buenas no pueden superar a las producidas.</p> }
+          <button class="btn btn-primario" type="button" [disabled]="ocupado() || buenas() <= 0 || buenas() > producidas()" (click)="cerrar()">Cerrar y crear el lote</button>
+        </div>
+      }
+    }
+  </app-modal>
+}
+
+<!-- Receta -->
+@if (receta(); as r) {
+  <app-modal [titulo]="'Receta · ' + r.nombre" ancho="ancho" (cerrar)="receta.set(null)">
+    <p class="tenue">Para producir <strong>{{ r.cantidadBase }} {{ r.producto.unidad?.toLowerCase() }}</strong> · {{ r.horasMaquina }} h de máquina ({{ r.tiposMaquina.map(texto).join(', ') }}) · {{ r.manoObraHoras }} h de mano de obra · rendimiento esperado {{ r.rendimientoEsperado }} %</p>
+    <div class="tabla-contenedor">
+      <table>
+        <thead><tr><th>Componente</th><th class="num">Cantidad</th></tr></thead>
+        <tbody>@for (c of r.componentes; track c.producto) { <tr><td>{{ c.nombre }}</td><td class="num">{{ numero(c.cantidad) }} {{ c.unidad.toLowerCase() }}</td></tr> }</tbody>
+      </table>
+    </div>
+    @if (r.pasos.length) {
+      <h3 style="margin-top:1rem">Pasos</h3>
+      <ol>@for (p of r.pasos; track $index) { <li>{{ p }}</li> }</ol>
+    }
+  </app-modal>
+}

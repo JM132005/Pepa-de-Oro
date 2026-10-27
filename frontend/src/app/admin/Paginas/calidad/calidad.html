@@ -1,0 +1,123 @@
+<!-- calidad.html → prueba de corte, liberación de producto terminado y no conformidades -->
+
+<div class="encabezado-pagina">
+  <div><h1>Calidad</h1><p class="tenue">La calidad se mide, no se supone: cada lote tiene su prueba y su grado.</p></div>
+</div>
+
+<div class="adm-resumen">
+  <div class="adm-dato" [class.peligro]="grano().length > 0"><span>Grano seco por evaluar</span><strong>{{ grano().length }}</strong></div>
+  <div class="adm-dato" [class.peligro]="productoTerminado().length > 0"><span>Producto terminado por liberar</span><strong>{{ productoTerminado().length }}</strong></div>
+  <div class="adm-dato"><span>No conformidades abiertas</span><strong>{{ noConformidades().length }}</strong></div>
+</div>
+
+<nav class="pestanas">
+  <button type="button" [class.activa]="pestana() === 'grano'" (click)="cambiar('grano')">Grano pendiente</button>
+  <button type="button" [class.activa]="pestana() === 'producto'" (click)="cambiar('producto')">Producto terminado</button>
+  <button type="button" [class.activa]="pestana() === 'noconformidades'" (click)="cambiar('noconformidades')">No conformidades</button>
+  <button type="button" [class.activa]="pestana() === 'evaluados'" (click)="cambiar('evaluados')">Evaluados</button>
+</nav>
+
+@switch (pestana()) {
+  @case ('grano') {
+    <div class="rejilla tres">
+      @for (l of grano(); track l._id) {
+        <article class="tarjeta">
+          <div class="fila entre"><a class="mono" [routerLink]="['/admin/poscosecha', l._id]"><strong>{{ l.codigo }}</strong></a><span class="tenue">{{ texto(l.origen) }}</span></div>
+          <p style="margin:0.3rem 0">{{ texto(l.cultivo) }} {{ texto(l.variedad) }} · {{ numero(l.kgSeco, 0) }} kg secos</p>
+          <p class="tenue" style="font-size:0.82rem">{{ l.productor?.nombre ?? l.hacienda?.nombre }}</p>
+          @if (puedeEvaluar()) {
+            <button class="btn btn-primario btn-sm" type="button" (click)="evaluando.set(l)">{{ l.cultivo === 'CAFE' ? 'Evaluar café' : 'Prueba de corte' }}</button>
+          }
+        </article>
+      } @empty {
+        <p class="tenue">No hay grano esperando evaluación.</p>
+      }
+    </div>
+  }
+  @case ('producto') {
+    <p class="tenue"><span class="rn">RN-11</span> El producto terminado no se vende hasta que Calidad lo libera.</p>
+    <app-tabla [filas]="productoTerminado()" [columnas]="columnasPt" [acciones]="botonesPt" vacio="Todo el producto terminado está liberado" />
+    <ng-template #botonesPt let-l>
+      @if (puedeEvaluar()) { <button class="btn btn-primario btn-sm" type="button" (click)="prepararControl(l)">Controlar y liberar</button> }
+    </ng-template>
+  }
+  @case ('noconformidades') {
+    <app-tabla [filas]="noConformidades()" [columnas]="columnasNc" [acciones]="botonesNc" nombreArchivo="no-conformidades" />
+    <ng-template #botonesNc let-l>
+      @if (puedeEvaluar() && !l.noConformidad?.cerrada) { <button class="btn btn-borde btn-sm" type="button" (click)="cerrandoNc.set(l)">Decidir destino</button> }
+    </ng-template>
+  }
+  @case ('evaluados') {
+    <app-tabla [filas]="evaluados()" [columnas]="columnasEvaluados" [acciones]="botonesEv" nombreArchivo="lotes-evaluados" />
+    <ng-template #botonesEv let-l>
+      <button class="btn-icono" type="button" title="Certificado" (click)="certificado(l)"><app-icono nombre="pdf" /></button>
+      @if (puedeEvaluar() && l.cultivo === 'CACAO' && !l.calidad?.cata) { <button class="btn btn-borde btn-sm" type="button" (click)="catando.set(l)">Cata</button> }
+    </ng-template>
+  }
+}
+
+<!-- Prueba de corte (cacao) o evaluación de café -->
+@if (evaluando(); as l) {
+  <app-modal [titulo]="(l.cultivo === 'CAFE' ? 'Evaluación de café · ' : 'Prueba de corte · ') + l.codigo" ancho="ancho" (cerrar)="evaluando.set(null)">
+    @if (l.cultivo === 'CAFE') {
+      <div class="rejilla-form tres">
+        <div class="campo"><label for="ch">Humedad %</label><input id="ch" type="number" step="0.1" [ngModel]="cafe().humedad" (ngModelChange)="cambiarCafe('humedad', +$event)" /></div>
+        <div class="campo"><label for="cd">Defectos en 300 g</label><input id="cd" type="number" min="0" [ngModel]="cafe().defectos300g" (ngModelChange)="cambiarCafe('defectos300g', +$event)" /></div>
+        <div class="campo"><label for="ct">Puntaje de taza (SCA)</label><input id="ct" type="number" min="0" max="100" step="0.25" [ngModel]="cafe().puntajeTaza" (ngModelChange)="cambiarCafe('puntajeTaza', +$event)" /></div>
+      </div>
+      <p class="tenue" style="font-size:0.82rem">Especialidad: ≤ 5 defectos y taza ≥ 84 · Exportación: ≤ 23 defectos y taza ≥ 80.</p>
+    } @else {
+      <p class="tenue">Se cortan 100 granos a lo largo y se cuenta cada tipo. La suma debe dar 100.</p>
+      <div class="rejilla-form tres">
+        @for (c of [['bienFermentados','Bien fermentados (marrones)'],['violetas','Violetas (poco fermentados)'],['pizarrosos','Pizarrosos (sin fermentar)'],['mohosos','Mohosos'],['insectados','Insectados'],['germinados','Germinados']]; track c[0]) {
+          <div class="campo"><label [for]="c[0]">{{ c[1] }}</label><input [id]="c[0]" type="number" min="0" max="100" [ngModel]="$any(corte())[c[0]]" (ngModelChange)="cambiarCorte(c[0], +$event)" /></div>
+        }
+        <div class="campo"><label for="hu">Humedad %</label><input id="hu" type="number" step="0.1" [ngModel]="corte().humedad" (ngModelChange)="cambiarCorte('humedad', +$event)" /></div>
+        <div class="campo"><label for="pg">Peso de 100 granos (g)</label><input id="pg" type="number" [ngModel]="corte().peso100Granos" (ngModelChange)="cambiarCorte('peso100Granos', +$event)" /></div>
+        <div class="campo"><label for="im">Impurezas %</label><input id="im" type="number" step="0.1" [ngModel]="corte().impurezas" (ngModelChange)="cambiarCorte('impurezas', +$event)" /></div>
+      </div>
+      <p [style.color]="sumaCorte() === 100 ? 'var(--exito)' : 'var(--peligro)'">Suma de granos: {{ sumaCorte() }} / 100</p>
+      <p class="tenue" style="font-size:0.82rem"><span class="rn">RN-06</span> El sistema calcula el grado con la tabla de límites. Premium: ≥ 75 % fermentados, ≤ 1 % mohosos y humedad ≤ 7 %. Exportación: ≥ 65 %. Nacional: ≥ 45 %. Menos que eso: rechazo.</p>
+    }
+    <button class="btn btn-primario" type="button" [disabled]="ocupado() || (l.cultivo !== 'CAFE' && sumaCorte() !== 100)" (click)="evaluar()">Registrar y asignar grado</button>
+  </app-modal>
+}
+
+@if (catando(); as l) {
+  <app-modal [titulo]="'Cata · ' + l.codigo" (cerrar)="catando.set(null)">
+    <div class="campo"><label for="nc">Notas (separadas por coma)</label><input id="nc" [ngModel]="notasCata()" (ngModelChange)="notasCata.set($event)" placeholder="floral, frutal, nuez, caramelo" /></div>
+    <div class="campo"><label for="pc">Puntaje (1 a 10)</label><input id="pc" type="number" min="1" max="10" [ngModel]="puntajeCata()" (ngModelChange)="puntajeCata.set(+$event)" /></div>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="catar()">Guardar cata</button>
+  </app-modal>
+}
+
+@if (controlando(); as l) {
+  <app-modal [titulo]="'Control de producto terminado · ' + l.codigo" (cerrar)="controlando.set(null)">
+    <p class="tenue">{{ $any(l.producto).nombre }} · {{ numero(l.cantidad, 0) }} unidades</p>
+    <div class="rejilla-form">
+      <div class="campo"><label for="pp">Peso promedio (g)</label><input id="pp" type="number" step="0.1" [ngModel]="control().pesoPromedioG" (ngModelChange)="cambiarControl('pesoPromedioG', +$event)" /></div>
+      <div class="campo"><label for="tt">Temperatura de templado (°C)</label><input id="tt" type="number" step="0.1" [ngModel]="control().temperaturaTemplado" (ngModelChange)="cambiarControl('temperaturaTemplado', +$event)" /></div>
+      <div class="campo ancho-completo"><label for="te">Tipo de empaque</label><input id="te" [ngModel]="control().tipoEmpaque" (ngModelChange)="cambiarControl('tipoEmpaque', $event)" /></div>
+    </div>
+    <label class="fila"><input type="checkbox" [checked]="control().selladoOk" (change)="cambiarControl('selladoOk', !control().selladoOk)" /> Sellado hermético correcto</label>
+    <label class="fila"><input type="checkbox" [checked]="control().etiquetaOk" (change)="cambiarControl('etiquetaOk', !control().etiquetaOk)" /> Etiqueta completa (lote, vencimiento, registro sanitario)</label>
+    <p class="tenue" style="font-size:0.82rem;margin-top:0.5rem">Si el peso se aleja más del 2 % del peso neto o falla el sellado, el lote queda bloqueado.</p>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="liberar()">Registrar control</button>
+  </app-modal>
+}
+
+@if (cerrandoNc(); as l) {
+  <app-modal [titulo]="'No conformidad · ' + l.codigo" (cerrar)="cerrandoNc.set(null)">
+    <p>{{ l.noConformidad?.causa }}</p>
+    <div class="campo">
+      <label for="dnc">Destino</label>
+      <select id="dnc" [ngModel]="destinoNc()" (ngModelChange)="destinoNc.set($event)">
+        <option value="DEVOLUCION">Devolución al productor</option>
+        <option value="REPROCESO">Reproceso (volver a secar o seleccionar)</option>
+        <option value="DESCARTE">Descarte</option>
+      </select>
+    </div>
+    <div class="campo"><label for="onc">Observación</label><textarea id="onc" rows="2" [ngModel]="observacionNc()" (ngModelChange)="observacionNc.set($event)"></textarea></div>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="cerrarNc()">Cerrar no conformidad</button>
+  </app-modal>
+}

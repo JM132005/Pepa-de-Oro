@@ -1,0 +1,93 @@
+<!-- servicios.html → transporte, taller y compra de cacao -->
+
+<section class="web-seccion crema" style="padding-top:2rem">
+  <div class="web-contenedor">
+    <span class="antetitulo">Servicios</span>
+    <h1>Transporte, taller y compra de cacao</h1>
+    <p class="tenue" style="max-width:640px">Además de producir, ponemos nuestra flota, nuestro taller y nuestra báscula al servicio de las fincas de El Oro.</p>
+  </div>
+</section>
+
+@if (datos(); as d) {
+  <section class="web-seccion">
+    <div class="web-contenedor rejilla dos">
+      <!-- Transporte -->
+      <article class="tarjeta">
+        <div class="fila"><app-icono nombre="logistica" [tam]="26" /><h2 style="margin:0">Transporte de carga</h2></div>
+        <p style="margin-top:0.75rem">{{ d.transporte?.texto }}</p>
+        @if (d.transporte?.rutas?.length) {
+          <div class="tabla-contenedor">
+            <table>
+              <thead><tr><th>Ruta</th><th>Tarifa referencial</th></tr></thead>
+              <tbody>
+                @for (r of d.transporte!.rutas; track r.ruta) {
+                  <tr><td>{{ r.ruta }}</td><td>{{ r.tarifa }}</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        <button class="btn btn-primario" type="button" style="margin-top:1rem" (click)="pedido.set('TRANSPORTE')">Cotizar un flete</button>
+      </article>
+
+      <!-- Taller -->
+      <article class="tarjeta">
+        <div class="fila"><app-icono nombre="mantenimiento" [tam]="26" /><h2 style="margin:0">Taller de mantenimiento</h2></div>
+        <p style="margin-top:0.75rem">{{ d.mantenimiento?.texto }}</p>
+        <ul class="tenue">
+          <li>Presupuesto antes de reparar (sin costo).</li>
+          <li>Orden de trabajo con repuestos y horas detalladas.</li>
+          <li>Mantenimiento preventivo por horas o kilómetros.</li>
+        </ul>
+        <button class="btn btn-primario" type="button" (click)="pedido.set('MANTENIMIENTO')">Pedir un servicio de taller</button>
+      </article>
+    </div>
+  </section>
+
+  <!-- Compra a productores con el precio del día -->
+  <section class="web-seccion crema">
+    <div class="web-contenedor rejilla dos" style="align-items:start">
+      <div>
+        <span class="antetitulo">¿Eres productor?</span>
+        <h2>Compramos tu cacao y tu café</h2>
+        <p>{{ d.compra?.texto }}</p>
+        <p class="tenue">Te entregamos una liquidación por escrito con el peso, la humedad, los descuentos y el precio. Pagamos en efectivo o por transferencia.</p>
+      </div>
+      <div class="tarjeta">
+        <div class="fila entre"><h3 style="margin:0">Precio del día</h3><span class="web-en-vivo">En vivo</span></div>
+        <p class="tenue" style="font-size:0.82rem">USD por quintal (45,36 kg)</p>
+        @if (precios().length) {
+          <div class="tabla-contenedor">
+            <table>
+              <thead><tr><th>Producto</th><th>Estado</th><th class="num">Precio / qq</th></tr></thead>
+              <tbody>
+                @for (p of precios(); track p.cultivo + p.variedad + p.estado) {
+                  <tr>
+                    <td>{{ texto(p.cultivo) }} {{ texto(p.variedad) }}</td>
+                    <td>{{ texto(p.estado) }}</td>
+                    <td class="num"><strong>{{ dinero(p.precioQq) }}</strong></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="tenue" style="font-size:0.78rem;margin-top:0.5rem">Vigente desde {{ fecha(precios()[0].fecha) }}. El precio final depende de la humedad y las impurezas medidas en la báscula.</p>
+        } @else {
+          <p class="tenue">Consulta el precio de hoy por WhatsApp.</p>
+        }
+      </div>
+    </div>
+  </section>
+} @else {
+  <app-cargando />
+}
+
+@if (pedido(); as servicio) {
+  <app-modal [titulo]="servicio === 'TRANSPORTE' ? 'Cotizar un flete' : 'Servicio de taller'" (cerrar)="pedido.set(null)">
+    <app-formulario-solicitud
+      [ocupado]="enviando()"
+      [mensajeInicial]="servicio === 'TRANSPORTE' ? 'Origen: \nDestino: \nCarga y peso aproximado: \nFecha: ' : 'Equipo (marca y modelo): \nFalla o servicio que necesito: '"
+      (enviar)="enviar($event)"
+    />
+  </app-modal>
+}

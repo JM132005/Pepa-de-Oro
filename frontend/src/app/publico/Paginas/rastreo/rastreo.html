@@ -1,0 +1,115 @@
+<!-- rastreo.html → historia de un lote, de la parcela a tu mesa -->
+
+<section class="web-seccion crema" style="padding-top:2rem">
+  <div class="web-contenedor" style="max-width:760px">
+    <span class="antetitulo">Trazabilidad</span>
+    <h1>Rastrea tu cacao</h1>
+    <p class="tenue">Escribe el código del lote que aparece en tu barra, caja o saco (por ejemplo <span class="mono">PT-20261015-01</span>) o escanea el QR de la etiqueta.</p>
+    <form class="fila" (ngSubmit)="buscar()" style="margin-top:1rem">
+      <input name="codigo" [ngModel]="codigo()" (ngModelChange)="codigo.set($event)" placeholder="Código del lote" style="flex:1;min-width:200px;text-transform:uppercase" aria-label="Código del lote" />
+      <button class="btn btn-primario" type="submit" [disabled]="buscando()"><app-icono nombre="buscar" /> Buscar</button>
+      @if (puedeEscanear) {
+        <button class="btn btn-borde" type="button" (click)="escaneando() ? detenerCamara() : escanear()"><app-icono nombre="qr" /> {{ escaneando() ? 'Cerrar cámara' : 'Escanear QR' }}</button>
+      }
+    </form>
+    @if (escaneando()) {
+      <!-- playsinline: en iPhone el video se ve dentro de la página y no a pantalla completa -->
+      <video #video playsinline muted style="width:100%;max-height:320px;margin-top:1rem;border-radius:var(--radio);background:#000"></video>
+    }
+  </div>
+</section>
+
+<section class="web-seccion">
+  <div class="web-contenedor" style="max-width:960px">
+    @if (buscando()) {
+      <app-cargando texto="Buscando la historia del lote" />
+    }
+    @if (error(); as e) {
+      <div class="aviso peligro">{{ e }}</div>
+    }
+
+    @if (resultado(); as r) {
+      <div class="rejilla dos" style="align-items:start">
+        <!-- Producto y orígenes -->
+        <div>
+          <article class="tarjeta" style="margin-bottom:1rem">
+            <div class="fila" style="align-items:flex-start;gap:1rem">
+              @if (r.producto?.imagen) {
+                <div style="width:96px;height:96px;flex:none;border-radius:var(--radio-sm);overflow:hidden"><app-imagen [src]="r.producto!.imagen" alt="" /></div>
+              }
+              <div>
+                <span class="mono tenue">{{ r.codigo }}</span>
+                <h2 style="margin:0.2rem 0">{{ r.producto?.nombre ?? (r.tipo === 'GRANO' ? 'Lote de grano' : 'Lote de producto') }}</h2>
+                <div class="fila">
+                  @if (r.liberado) {
+                    <span class="insignia tono-exito">Aprobado por Calidad</span>
+                  } @else {
+                    <span class="insignia tono-aviso">En control de calidad</span>
+                  }
+                </div>
+                <p class="tenue" style="margin:0.4rem 0 0;font-size:0.88rem">
+                  @if (r.fechas.elaboracion) { Elaborado el {{ fecha(r.fechas.elaboracion) }}. }
+                  @if (r.fechas.vencimiento) { Consumir antes del {{ fecha(r.fechas.vencimiento) }}. }
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <h3>¿De dónde viene?</h3>
+          @for (o of r.origenes; track o.codigoLote) {
+            <article class="web-equipo" style="margin-bottom:1rem">
+              @if (o.ubicacion) {
+                <iframe class="web-mapa" style="border:none;border-radius:0;height:180px" [src]="mapa(o.ubicacion.lat, o.ubicacion.lng)" [title]="'Mapa de ' + o.nombre" loading="lazy"></iframe>
+              }
+              <div class="info">
+                <span class="tenue" style="font-size:0.78rem;text-transform:uppercase">{{ o.tipo === 'PROPIO' ? 'Hacienda propia' : 'Productor asociado' }}</span>
+                <strong>{{ o.nombre }}</strong>
+                <span class="tenue" style="font-size:0.88rem">{{ o.canton }} · {{ texto(o.variedad) }}{{ o.parcela ? ' · parcela ' + o.parcela : '' }} · lote {{ o.codigoLote }}</span>
+              </div>
+            </article>
+          }
+
+          @if (r.calidad.length) {
+            <h3>Calidad</h3>
+            @for (c of r.calidad; track c.lote) {
+              <div class="tarjeta" style="margin-bottom:0.75rem">
+                <div class="fila entre"><span class="mono">{{ c.lote }}</span><app-insignia [valor]="c.grado" /></div>
+                <p class="tenue" style="margin:0.4rem 0 0;font-size:0.88rem">
+                  @if (c.fermentados !== undefined) { {{ numero(c.fermentados, 0) }} % de granos bien fermentados. }
+                  @if (c.puntaje) { Puntaje de cata {{ c.puntaje }}/10. }
+                </p>
+                @if (c.notas?.length) {
+                  <div class="web-notas" style="margin-top:0.4rem">
+                    @for (n of c.notas; track n) {
+                      <span class="web-nota">{{ n }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          }
+        </div>
+
+        <!-- Línea de tiempo -->
+        <div>
+          <h3>Su historia</h3>
+          <ol class="web-linea-tiempo">
+            @for (e of r.etapas; track $index) {
+              <li>
+                <time>{{ fecha(e.fecha) }}</time>
+                <strong style="display:block">{{ e.titulo }}</strong>
+                <span class="tenue" style="font-size:0.88rem">{{ e.detalle }}</span>
+              </li>
+            }
+          </ol>
+        </div>
+      </div>
+    } @else if (!buscando() && !error()) {
+      <div class="rejilla tres">
+        <article class="web-linea"><div class="icono-circulo"><app-icono nombre="campo" /></div><h3>1. La parcela</h3><p class="tenue">Hacienda propia o productor asociado, variedad y fecha de cosecha.</p></article>
+        <article class="web-linea"><div class="icono-circulo"><app-icono nombre="poscosecha" /></div><h3>2. Fermentado y secado</h3><p class="tenue">Días de fermentación, volteos y humedad final del grano.</p></article>
+        <article class="web-linea"><div class="icono-circulo"><app-icono nombre="calidad" /></div><h3>3. Calidad y planta</h3><p class="tenue">Prueba de corte, grado obtenido y fecha de elaboración.</p></article>
+      </div>
+    }
+  </div>
+</section>

@@ -1,0 +1,414 @@
+/* admin.css → estilos del SISTEMA INTERNO: menú lateral, barra superior, campana de alertas y piezas
+   que se repiten en las pantallas (resúmenes, columnas tipo tablero, cajas de totales).
+   Todas las clases empiezan con "adm-". Usa las variables de styles.css. */
+
+/* ─────────── Estructura: menú a la izquierda + contenido ─────────── */
+.adm-marco {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 1024px) {
+  .adm-marco {
+    grid-template-columns: 252px minmax(0, 1fr);
+  }
+}
+
+/* Menú lateral */
+.adm-menu {
+  background: var(--cacao-900);
+  color: #e9dcc8;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 270px;
+  z-index: 70;
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+}
+.adm-menu.abierto {
+  transform: none;
+  box-shadow: var(--sombra-alta);
+}
+@media (min-width: 1024px) {
+  .adm-menu {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: auto;
+    transform: none;
+  }
+}
+.adm-menu .marca {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 1.1rem;
+  color: #fff;
+  text-decoration: none;
+  font: 700 1.05rem var(--fuente-titulos);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.adm-menu .marca small {
+  display: block;
+  font: 500 0.7rem var(--fuente);
+  color: var(--oro-400);
+}
+.adm-menu nav {
+  overflow-y: auto;
+  padding: 0.5rem 0.6rem 1rem;
+  flex: 1;
+}
+.adm-menu h4 {
+  font: 700 0.68rem var(--fuente);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #a8916f;
+  margin: 1rem 0.6rem 0.35rem;
+}
+.adm-menu a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radio-sm);
+  color: #e9dcc8;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.adm-menu a:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.adm-menu a.activo {
+  background: var(--oro-500);
+  color: var(--cacao-950);
+  font-weight: 700;
+}
+.adm-menu .pie-menu {
+  padding: 0.8rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.8rem;
+}
+.adm-menu .pie-menu a {
+  padding: 0.3rem 0;
+  color: var(--oro-400);
+}
+.adm-fondo-menu {
+  position: fixed;
+  inset: 0;
+  background: rgba(29, 15, 7, 0.45);
+  z-index: 69;
+}
+@media (min-width: 1024px) {
+  .adm-fondo-menu,
+  .adm-solo-movil {
+    display: none !important;
+  }
+}
+
+/* Barra superior */
+.adm-barra {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 58px;
+  padding: 0 1rem;
+  background: color-mix(in srgb, var(--fondo) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--borde);
+}
+.adm-barra .titulo {
+  font: 700 1rem var(--fuente-titulos);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.adm-barra .derecha {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.adm-usuario {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.adm-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--oro-100);
+  color: var(--cacao-800);
+  font: 700 0.8rem var(--fuente);
+}
+.adm-contenido {
+  padding: 1.25rem 1rem 3rem;
+  max-width: 1400px;
+  width: 100%;
+}
+@media (min-width: 720px) {
+  .adm-contenido {
+    padding: 1.5rem 1.75rem 3rem;
+  }
+}
+
+/* Campana de alertas */
+.adm-campana {
+  position: relative;
+}
+.adm-campana .burbuja {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--peligro);
+  color: #fff;
+  font: 700 0.66rem/17px var(--fuente);
+  text-align: center;
+  padding: 0 4px;
+}
+.adm-desplegable {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: min(380px, calc(100vw - 24px));
+  max-height: 70vh;
+  overflow: auto;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra-alta);
+  z-index: 60;
+}
+.adm-desplegable header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--borde);
+  font-weight: 700;
+}
+.adm-alerta {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--borde);
+  text-decoration: none;
+  color: var(--texto);
+  font-size: 0.86rem;
+}
+.adm-alerta:hover {
+  background: var(--superficie-2);
+}
+.adm-alerta .punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  margin-top: 0.4rem;
+  background: var(--oro-500);
+}
+.adm-alerta.alta .punto {
+  background: var(--peligro);
+}
+
+/* ─────────── Piezas comunes de las pantallas ─────────── */
+/* Tira de números chicos arriba de una pantalla (ej. "3 por cobrar · $1 200") */
+.adm-resumen {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  margin-bottom: 1rem;
+}
+.adm-dato {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 0.75rem 0.9rem;
+}
+.adm-dato span {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+  font-weight: 600;
+}
+.adm-dato strong {
+  font: 700 1.35rem var(--fuente-titulos);
+  font-variant-numeric: tabular-nums;
+}
+.adm-dato.peligro strong {
+  color: var(--peligro);
+}
+.adm-dato.exito strong {
+  color: var(--exito);
+}
+
+/* Tablero por columnas (poscosecha, órdenes, pedidos por estado) */
+.adm-tablero {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: start;
+}
+.adm-columna {
+  background: var(--superficie-2);
+  border-radius: var(--radio);
+  padding: 0.6rem;
+  min-height: 120px;
+}
+.adm-columna > h4 {
+  margin: 0.2rem 0.3rem 0.6rem;
+  font: 700 0.8rem var(--fuente);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--texto-suave);
+  display: flex;
+  justify-content: space-between;
+}
+.adm-ficha {
+  display: block;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-sm);
+  padding: 0.6rem 0.7rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--texto);
+  text-decoration: none;
+}
+.adm-ficha:hover {
+  border-color: var(--oro-500);
+}
+
+/* Barra de capacidad (fermentadores, tendales, secadora) */
+.adm-capacidad {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--superficie-2);
+  overflow: hidden;
+}
+.adm-capacidad > div {
+  height: 100%;
+  background: var(--oro-500);
+  border-radius: 999px;
+}
+.adm-capacidad.lleno > div {
+  background: var(--peligro);
+}
+
+/* Caja de totales de una venta */
+.adm-totales {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 1rem;
+  font-size: 0.92rem;
+}
+.adm-totales .total {
+  font: 700 1.5rem var(--fuente-titulos);
+  color: var(--cacao-800);
+}
+
+/* Líneas editables de una venta (caja, cotización) */
+.adm-lineas td input {
+  padding: 0.3rem 0.4rem;
+  width: 84px;
+  text-align: right;
+}
+
+/* Lista de accesos rápidos en el inicio */
+.adm-accesos {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  margin-bottom: 1.25rem;
+}
+.adm-acceso {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: var(--radio);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  text-decoration: none;
+  color: var(--texto);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.adm-acceso:hover {
+  border-color: var(--oro-500);
+  box-shadow: var(--sombra);
+}
+.adm-acceso .icono-circulo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--oro-100);
+  color: var(--cacao-800);
+  flex: none;
+}
+
+/* Login */
+.adm-login {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 900px) {
+  .adm-login {
+    grid-template-columns: 1.1fr 1fr;
+  }
+}
+.adm-login .lado-marca {
+  display: none;
+  position: relative;
+  overflow: hidden;
+  background: var(--cacao-900);
+  color: #f1e3c4;
+  padding: 3rem;
+}
+@media (min-width: 900px) {
+  .adm-login .lado-marca {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+}
+.adm-login .lado-marca img.fondo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.4;
+}
+.adm-login .lado-form {
+  display: grid;
+  place-items: center;
+  padding: 2rem 1rem;
+}
+.adm-login form {
+  width: min(400px, 100%);
+}
+.adm-demo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* Ocultar en celular (texto secundario que no cabe en pantallas angostas) */
+@media (max-width: 640px) {
+  .movil-oculto {
+    display: none !important;
+  }
+}

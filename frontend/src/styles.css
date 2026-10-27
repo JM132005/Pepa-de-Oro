@@ -1,0 +1,511 @@
+/* styles.css → estilos GLOBALES de Pepa de Oro (web pública y sistema interno).
+   Todo usa "variables CSS" (--nombre): cambiando un color aquí, cambia en toda la aplicación.
+   Diseño "mobile first": primero se escribe para celular y con @media se agranda para pantallas anchas. */
+
+:root {
+  /* Marca: marrón cacao, dorado y crema */
+  --cacao-950: #1d0f07;
+  --cacao-900: #2a170c;
+  --cacao-800: #3b2314;
+  --cacao-700: #57331d;
+  --cacao-500: #8a5a3b;
+  --cacao-300: #c49a7a;
+  --oro-600: #a87a1f;
+  --oro-500: #c8962e;
+  --oro-400: #e0b64f;
+  --oro-100: #f7ecd0;
+  --crema: #f7f1e6;
+  --hoja-600: #2f6b3a;
+  --hoja-100: #e2efe0;
+
+  /* Superficies y texto */
+  --fondo: #fbf8f3;
+  --superficie: #ffffff;
+  --superficie-2: #f4eee4;
+  --borde: #e6dccd;
+  --texto: #2b211b;
+  --texto-suave: #6b5a48;
+  --texto-tenue: #9a8977;
+
+  /* Estados */
+  --exito: #2f7d46;
+  --exito-fondo: #e3f2e7;
+  --aviso: #a26a00;
+  --aviso-fondo: #fdf1d8;
+  --peligro: #b3402a;
+  --peligro-fondo: #fbe5df;
+  --info: #2b5f8a;
+  --info-fondo: #e2edf7;
+
+  --radio: 12px;
+  --radio-sm: 8px;
+  --sombra: 0 1px 2px rgba(59, 35, 20, 0.06), 0 4px 16px rgba(59, 35, 20, 0.06);
+  --sombra-alta: 0 10px 40px rgba(29, 15, 7, 0.18);
+  --fuente: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fuente-titulos: 'Fraunces', Georgia, serif;
+  color-scheme: light;
+}
+
+/* Modo oscuro (solo si el sistema operativo lo pide y no se forzó el claro) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --fondo: #17100b;
+    --superficie: #21170f;
+    --superficie-2: #2a1e15;
+    --borde: #3d2d21;
+    --texto: #f1e8dc;
+    --texto-suave: #c7b49f;
+    --texto-tenue: #8f7c69;
+    --crema: #2a1e15;
+    --oro-100: #3a2c14;
+    --hoja-100: #1b2d1e;
+    --exito-fondo: #173322;
+    --aviso-fondo: #3a2b0e;
+    --peligro-fondo: #3d1d15;
+    --info-fondo: #142636;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --fondo: #17100b;
+  --superficie: #21170f;
+  --superficie-2: #2a1e15;
+  --borde: #3d2d21;
+  --texto: #f1e8dc;
+  --texto-suave: #c7b49f;
+  --texto-tenue: #8f7c69;
+  --crema: #2a1e15;
+  --oro-100: #3a2c14;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: var(--fuente);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+img {
+  max-width: 100%;
+  display: block;
+}
+a {
+  color: var(--oro-600);
+}
+h1,
+h2,
+h3 {
+  font-family: var(--fuente-titulos);
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+  color: var(--texto);
+}
+h1 {
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+}
+h2 {
+  font-size: clamp(1.25rem, 2.2vw, 1.6rem);
+}
+h3 {
+  font-size: 1.1rem;
+}
+p {
+  margin: 0 0 0.75rem;
+}
+small,
+.tenue {
+  color: var(--texto-suave);
+}
+
+/* ─────────── Botones ─────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: 600 0.92rem var(--fuente);
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.06s ease, background 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-primario {
+  background: var(--cacao-800);
+  color: #fff;
+}
+.btn-primario:hover:not(:disabled) {
+  background: var(--cacao-700);
+}
+.btn-oro {
+  background: var(--oro-500);
+  color: var(--cacao-950);
+}
+.btn-oro:hover:not(:disabled) {
+  background: var(--oro-400);
+}
+.btn-borde {
+  background: transparent;
+  border-color: var(--borde);
+  color: var(--texto);
+}
+.btn-borde:hover:not(:disabled) {
+  background: var(--superficie-2);
+}
+.btn-peligro {
+  background: var(--peligro);
+  color: #fff;
+}
+.btn-exito {
+  background: var(--exito);
+  color: #fff;
+}
+.btn-sm {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.82rem;
+}
+.btn-icono {
+  padding: 0.4rem;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ─────────── Formularios ─────────── */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.8rem;
+}
+.campo label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-sm);
+  padding: 0.55rem 0.7rem;
+  width: 100%;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--oro-400);
+  outline-offset: 1px;
+  border-color: var(--oro-500);
+}
+input.ng-invalid.ng-touched,
+select.ng-invalid.ng-touched {
+  border-color: var(--peligro);
+}
+.error-campo {
+  color: var(--peligro);
+  font-size: 0.8rem;
+}
+input[type='checkbox'] {
+  width: auto;
+}
+.rejilla-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 1rem;
+}
+@media (min-width: 640px) {
+  .rejilla-form {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .rejilla-form.tres {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .ancho-completo {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ─────────── Tarjetas y estructura ─────────── */
+.tarjeta {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 1rem;
+}
+.tarjeta h3 {
+  margin-bottom: 0.75rem;
+}
+.encabezado-pagina {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.encabezado-pagina p {
+  margin: 0;
+}
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.rejilla {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 720px) {
+  .rejilla.dos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rejilla.tres {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1100px) {
+  .rejilla.cuatro {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.separador {
+  height: 1px;
+  background: var(--borde);
+  margin: 1rem 0;
+}
+.fila {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.entre {
+  justify-content: space-between;
+}
+.derecha {
+  text-align: right;
+}
+.negrita {
+  font-weight: 700;
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+}
+.oculto {
+  display: none !important;
+}
+
+/* ─────────── Insignias (estados) ─────────── */
+.insignia {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.insignia::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.tono-exito {
+  background: var(--exito-fondo);
+  color: var(--exito);
+}
+.tono-aviso {
+  background: var(--aviso-fondo);
+  color: var(--aviso);
+}
+.tono-peligro {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}
+.tono-info {
+  background: var(--info-fondo);
+  color: var(--info);
+}
+.tono-neutro {
+  background: var(--superficie-2);
+  color: var(--texto-suave);
+}
+.tono-oro {
+  background: var(--oro-100);
+  color: var(--oro-600);
+}
+
+/* ─────────── Tablas ─────────── */
+.tabla-contenedor {
+  overflow-x: auto;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+th,
+td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--borde);
+  vertical-align: middle;
+}
+th {
+  background: var(--superficie-2);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+tbody tr:hover {
+  background: var(--superficie-2);
+}
+tbody tr.clicable {
+  cursor: pointer;
+}
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─────────── Pestañas ─────────── */
+.pestanas {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--borde);
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+.pestanas button {
+  background: none;
+  border: none;
+  padding: 0.6rem 0.9rem;
+  font: 600 0.9rem var(--fuente);
+  color: var(--texto-suave);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pestanas button.activa {
+  color: var(--cacao-800);
+  border-bottom-color: var(--oro-500);
+}
+
+/* ─────────── Avisos dentro de páginas ─────────── */
+.aviso {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radio-sm);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+.aviso.peligro {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}
+.aviso.exito {
+  background: var(--exito-fondo);
+  color: var(--exito);
+}
+.aviso.info {
+  background: var(--info-fondo);
+  color: var(--info);
+}
+.aviso.oro {
+  background: var(--oro-100);
+  color: var(--oro-600);
+}
+
+/* Etiqueta de regla de negocio: "RN-12" */
+.rn {
+  display: inline-block;
+  font: 700 0.7rem var(--fuente);
+  background: var(--cacao-800);
+  color: var(--oro-400);
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  letter-spacing: 0.03em;
+}
+
+/* Lista de definición (dato: valor) */
+.datos {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  font-size: 0.9rem;
+  margin: 0;
+}
+.datos dt {
+  color: var(--texto-suave);
+}
+.datos dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Animación suave al aparecer */
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.aparecer {
+  animation: aparecer 0.25s ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Deslizador (input range): sin borde ni relleno de caja y con el color de la marca */
+input[type='range'] {
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--oro-500);
+  flex: 1;
+  min-width: 120px;
+}

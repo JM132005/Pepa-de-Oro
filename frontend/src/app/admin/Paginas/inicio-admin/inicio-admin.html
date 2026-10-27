@@ -1,0 +1,76 @@
+<!-- inicio-admin.html → tablero de inicio de cada usuario -->
+
+<div class="encabezado-pagina">
+  <div>
+    <h1>{{ saludo() }}, {{ auth.usuario()?.nombre?.split(' ')?.[0] }}</h1>
+    <p class="tenue" style="text-transform:capitalize">{{ hoy }}</p>
+  </div>
+</div>
+
+<!-- Accesos rápidos según el rol -->
+<div class="adm-accesos">
+  @for (a of accesos(); track a.ruta) {
+    <a class="adm-acceso" [routerLink]="a.ruta">
+      <span class="icono-circulo"><app-icono [nombre]="a.icono" /></span>
+      {{ a.texto }}
+    </a>
+  }
+</div>
+
+<div class="rejilla dos" style="margin-bottom:1.25rem">
+  <!-- Alertas más urgentes -->
+  <section class="tarjeta">
+    <h3>Alertas</h3>
+    @for (a of alertas(); track $index) {
+      <a class="adm-alerta" style="padding-inline:0" [class.alta]="a.nivel === 'ALTA'" [routerLink]="a.ruta ?? '/admin'">
+        <span class="punto"></span><span><strong>{{ a.area }}</strong> · {{ a.mensaje }}</span>
+      </a>
+    } @empty {
+      <p class="tenue">No hay alertas para tu área. 🌱</p>
+    }
+  </section>
+
+  <!-- Bloque propio del rol -->
+  @if (auth.tieneRol('VENTAS') && caja() !== undefined) {
+    <section class="tarjeta">
+      <h3>Caja de la tienda</h3>
+      @if (caja(); as c) {
+        <p><span class="insignia tono-exito">Abierta</span> desde {{ fechaHora(c.apertura) }} por {{ c.cajeroNombre }}</p>
+        <p class="tenue">{{ c.numeroVentas }} venta(s) en el turno.</p>
+      } @else {
+        <p><span class="insignia tono-neutro">Cerrada</span> No tienes un turno abierto.</p>
+      }
+      <a class="btn btn-primario" routerLink="/admin/caja">Ir a la caja</a>
+    </section>
+  } @else if (agenda().length) {
+    <section class="tarjeta">
+      <h3>Labores del día</h3>
+      <p class="tenue" style="font-size:0.85rem">Parcelas con labores atrasadas o en período de carencia.</p>
+      @for (g of agenda().slice(0, 8); track g.parcela._id) {
+        <a class="adm-alerta" style="padding-inline:0" [routerLink]="['/admin/campo/parcelas', g.parcela._id]">
+          <span class="punto"></span>
+          <span>
+            <strong>{{ g.parcela.codigo }}</strong> ·
+            @for (t of g.atrasadas; track t.tipo; let ultimo = $last) { {{ texto(t.tipo) }} ({{ t.diasAtraso }} d){{ ultimo ? '' : ', ' }} }
+            @if (g.bloqueo) { <span class="tenue">· {{ g.bloqueo }}</span> }
+          </span>
+        </a>
+      }
+      <a class="btn btn-borde btn-sm" routerLink="/admin/campo" style="margin-top:0.6rem">Ver campo</a>
+    </section>
+  } @else {
+    <section class="tarjeta">
+      <h3>Tu panel</h3>
+      <p class="tenue">Abajo tienes los indicadores de tu área del mes en curso. En <a routerLink="/admin/informes">Informes</a> puedes descargarlos en PDF o Excel.</p>
+      <a class="btn btn-borde btn-sm" [routerLink]="['/admin/paneles', panel()?.area ?? 'gerencial']">Ver panel completo con filtros</a>
+    </section>
+  }
+</div>
+
+<!-- Panel de KPIs del área principal -->
+@if (panel(); as p) {
+  <h2>{{ p.titulo }} · este mes</h2>
+  <app-panel-kpis [panel]="p" />
+} @else {
+  <app-cargando texto="Cargando tu panel" />
+}
