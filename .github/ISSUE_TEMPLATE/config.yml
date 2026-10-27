@@ -1,0 +1,2 @@
+# config.yml → obliga a usar una de las plantillas (no Issues en blanco).
+blank_issues_enabled: false

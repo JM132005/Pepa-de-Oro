@@ -1,0 +1,3 @@
+# Normaliza los saltos de línea: los scripts .sh SIEMPRE con LF (si no, bash falla en Windows)
+* text=auto
+*.sh text eol=lf

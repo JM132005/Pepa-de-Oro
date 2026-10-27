@@ -1,0 +1,28 @@
+# error.yml → formulario para reportar un error.
+name: Error
+description: Algo no funciona como debería
+title: "Error: "
+labels: [bug]
+body:
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducirlo
+      value: |
+        1. Entrar como …@pepadeoro.ec
+        2. Ir a …
+        3. …
+    validations: { required: true }
+  - type: textarea
+    id: esperado
+    attributes:
+      label: ¿Qué esperabas y qué pasó?
+    validations: { required: true }
+  - type: input
+    id: rn
+    attributes:
+      label: ¿Viola alguna regla de negocio? (RN-xx)
+  - type: textarea
+    id: evidencia
+    attributes:
+      label: Captura o mensaje de error (consola del navegador o de la API)

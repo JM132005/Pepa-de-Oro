@@ -1,0 +1,41 @@
+# historia.yml → formulario para crear un Issue de tipo "Historia de usuario" (botón New issue).
+name: Historia de usuario
+description: Una funcionalidad vista desde quien la usa
+title: "[NNN] "
+labels: [historia]
+body:
+  - type: input
+    id: rol
+    attributes:
+      label: Como…
+      placeholder: cajera de la tienda
+    validations: { required: true }
+  - type: input
+    id: quiero
+    attributes:
+      label: Quiero…
+      placeholder: cobrar con tarjeta y efectivo en la misma venta
+    validations: { required: true }
+  - type: input
+    id: para
+    attributes:
+      label: Para…
+      placeholder: no perder ventas cuando el cliente no completa con un solo medio
+    validations: { required: true }
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación (Dado / Cuando / Entonces)
+      value: |
+        - [ ] Dado …, cuando …, entonces …
+    validations: { required: true }
+  - type: input
+    id: rn
+    attributes:
+      label: Reglas de negocio relacionadas
+      placeholder: RN-19, RN-20
+  - type: dropdown
+    id: prioridad
+    attributes:
+      label: Prioridad
+      options: [P1 - imprescindible, P2 - importante, P3 - deseable]

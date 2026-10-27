@@ -1,0 +1,22 @@
+# Dependencias (se reinstalan con npm install)
+node_modules/
+
+# Compilados
+dist/
+out-tsc/
+coverage/
+*.tsbuildinfo
+.angular/
+
+# Variables de entorno con secretos
+.env
+.env.local
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log
+correos-de-prueba/

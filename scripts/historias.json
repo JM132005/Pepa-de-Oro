@@ -1,0 +1,416 @@
+{
+  "hitos": [
+    "Entrega 1 · Base",
+    "Entrega 2 · Catálogo e inventario",
+    "Entrega 3 · Ventas y facturación",
+    "Entrega 4 · Sitio web",
+    "Entrega 5 · Campo y acopio",
+    "Entrega 6 · Producción",
+    "Entrega 7 · Equipos y logística",
+    "Entrega 8 · Analítica"
+  ],
+  "historias": [
+    {
+      "titulo": "[001] Iniciar sesión según mi rol",
+      "hito": "Entrega 1 · Base",
+      "prioridad": "P1",
+      "spec": "specs/001-base-usuarios-roles",
+      "etiquetas": [
+        "historia",
+        "p1"
+      ],
+      "cuerpo": "Cada empleado entra solo a lo que le corresponde.",
+      "escenarios": [
+        "Dado un usuario activo con rol VENTAS, cuando ingresa correo y contraseña correctos, entonces recibe un token y ve el menú de Caja, Facturas, Cotizaciones y Clientes.",
+        "Dado un usuario con la contraseña equivocada, cuando intenta entrar, entonces ve \"Correo o contraseña incorrectos\" y no recibe token.",
+        "Dado un usuario BODEGA, cuando abre /admin/usuarios, entonces el guard lo regresa al inicio y la API responde 403."
+      ]
+    },
+    {
+      "titulo": "[001] Administrar usuarios",
+      "hito": "Entrega 1 · Base",
+      "prioridad": "P1",
+      "spec": "specs/001-base-usuarios-roles",
+      "etiquetas": [
+        "historia",
+        "p1"
+      ],
+      "cuerpo": "El gerente da de alta, desactiva y cambia roles.",
+      "escenarios": [
+        "Dado el gerente, cuando crea un usuario con dos roles, entonces el usuario puede entrar con ambos permisos.",
+        "Dado el gerente, cuando desactiva un usuario, entonces su token deja de servir en la siguiente petición."
+      ]
+    },
+    {
+      "titulo": "[001] Ver quién hizo qué",
+      "hito": "Entrega 1 · Base",
+      "prioridad": "P2",
+      "spec": "specs/001-base-usuarios-roles",
+      "etiquetas": [
+        "historia",
+        "p2"
+      ],
+      "cuerpo": "Las acciones sensibles quedan registradas para control interno.",
+      "escenarios": [
+        "Dado una factura anulada, cuando el gerente abre Auditoría, entonces ve usuario, fecha, valor anterior y nuevo, sin opción de editar ni borrar."
+      ]
+    },
+    {
+      "titulo": "[002] Mantener el catálogo",
+      "hito": "Entrega 2 · Catálogo e inventario",
+      "prioridad": "P1",
+      "spec": "specs/002-catalogo-inventario",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-16"
+      ],
+      "cuerpo": "Ventas y la web muestran precios correctos.",
+      "escenarios": [
+        "Dado el gerente, cuando publica un producto con precio por mayor desde 12 unidades, entonces la web lo muestra con su stock y la caja aplica el precio desde la unidad 12 (RN-16)."
+      ]
+    },
+    {
+      "titulo": "[002] Despachar primero lo que vence primero",
+      "hito": "Entrega 2 · Catálogo e inventario",
+      "prioridad": "P1",
+      "spec": "specs/002-catalogo-inventario",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-13",
+        "rn-14"
+      ],
+      "cuerpo": "Evitar pérdidas por vencimiento.",
+      "escenarios": [
+        "Dado dos lotes del mismo producto que vencen en marzo y en junio, cuando se vende una unidad, entonces sale del lote de marzo (RN-13).",
+        "Dado un lote vencido, cuando se intenta vender, entonces el sistema lo rechaza (RN-14) y lo propone para baja."
+      ]
+    },
+    {
+      "titulo": "[002] Ajustar inventario con control",
+      "hito": "Entrega 2 · Catálogo e inventario",
+      "prioridad": "P2",
+      "spec": "specs/002-catalogo-inventario",
+      "etiquetas": [
+        "historia",
+        "p2",
+        "rn-12",
+        "rn-15"
+      ],
+      "cuerpo": "Las diferencias de conteo no se corrigen a escondidas.",
+      "escenarios": [
+        "Dado bodega registra un faltante, cuando no indica motivo, entonces el ajuste se rechaza (RN-15).",
+        "Dado un ajuste con motivo, cuando el gerente lo aprueba, entonces se crea el movimiento y el stock nunca queda negativo (RN-12)."
+      ]
+    },
+    {
+      "titulo": "[003] Vender en la caja",
+      "hito": "Entrega 3 · Ventas y facturación",
+      "prioridad": "P1",
+      "spec": "specs/003-ventas-facturacion",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-17",
+        "rn-19",
+        "rn-20"
+      ],
+      "cuerpo": "La tienda atiende rápido y cuadra el turno.",
+      "escenarios": [
+        "Dado un turno abierto, cuando la cajera vende 3 barras a consumidor final por 18 USD, entonces se emite la factura con secuencial correlativo (RN-20) y baja el stock.",
+        "Dado una venta de 65 USD, cuando se intenta como consumidor final, entonces el sistema pide cédula o RUC (RN-19).",
+        "Dado un descuento manual del 20 % hecho por VENTAS, cuando el tope del rol es 10 %, entonces se rechaza (RN-17)."
+      ]
+    },
+    {
+      "titulo": "[003] Cotizar y vender por mayor",
+      "hito": "Entrega 3 · Ventas y facturación",
+      "prioridad": "P1",
+      "spec": "specs/003-ventas-facturacion",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-18",
+        "rn-22"
+      ],
+      "cuerpo": "Clientes mayoristas reciben precio y condiciones formales.",
+      "escenarios": [
+        "Dado una cotización vencida, cuando se intenta convertir en pedido, entonces el sistema lo impide (RN-22).",
+        "Dado un cliente con deuda vencida, cuando pide a crédito, entonces se rechaza (RN-18)."
+      ]
+    },
+    {
+      "titulo": "[003] Corregir una factura",
+      "hito": "Entrega 3 · Ventas y facturación",
+      "prioridad": "P2",
+      "spec": "specs/003-ventas-facturacion",
+      "etiquetas": [
+        "historia",
+        "p2",
+        "rn-21"
+      ],
+      "cuerpo": "Cumplir la norma: una factura emitida no se borra.",
+      "escenarios": [
+        "Dado una factura emitida con error, cuando se anula, entonces se genera una nota de crédito y la factura queda ANULADA, nunca eliminada (RN-21)."
+      ]
+    },
+    {
+      "titulo": "[004] Ver productos con stock real",
+      "hito": "Entrega 4 · Sitio web",
+      "prioridad": "P1",
+      "spec": "specs/004-web-publica",
+      "etiquetas": [
+        "historia",
+        "p1"
+      ],
+      "cuerpo": "El cliente sabe qué hay antes de llamar.",
+      "escenarios": [
+        "Dado un producto publicado con 0 unidades, cuando un visitante abre el catálogo, entonces ve \"Agotado\" y puede pedir aviso."
+      ]
+    },
+    {
+      "titulo": "[004] Enviar una solicitud",
+      "hito": "Entrega 4 · Sitio web",
+      "prioridad": "P1",
+      "spec": "specs/004-web-publica",
+      "etiquetas": [
+        "historia",
+        "p1"
+      ],
+      "cuerpo": "Sin compra en línea: el equipo de ventas responde.",
+      "escenarios": [
+        "Dado un visitante, cuando llena el formulario de cotización, entonces se crea una solicitud que ve Ventas en el sistema."
+      ]
+    },
+    {
+      "titulo": "[004] Rastrear el origen de mi chocolate",
+      "hito": "Entrega 4 · Sitio web",
+      "prioridad": "P2",
+      "spec": "specs/004-web-publica",
+      "etiquetas": [
+        "historia",
+        "p2"
+      ],
+      "cuerpo": "Diferenciar la marca por trazabilidad.",
+      "escenarios": [
+        "Dado el código impreso en la barra, cuando se consulta en /rastreo, entonces se ve la hacienda o cantón, fermentación, secado, calidad y fecha de elaboración sin datos privados."
+      ]
+    },
+    {
+      "titulo": "[005] Registrar labores y cosechas",
+      "hito": "Entrega 5 · Campo y acopio",
+      "prioridad": "P1",
+      "spec": "specs/005-campo-acopio-poscosecha",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-01"
+      ],
+      "cuerpo": "Saber cuánto produce cada parcela y a qué costo.",
+      "escenarios": [
+        "Dado una parcela fumigada ayer con un producto de 14 días de carencia, cuando se intenta cosechar, entonces se rechaza (RN-01)."
+      ]
+    },
+    {
+      "titulo": "[005] Comprar cacao a productores",
+      "hito": "Entrega 5 · Campo y acopio",
+      "prioridad": "P1",
+      "spec": "specs/005-campo-acopio-poscosecha",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-03",
+        "rn-04"
+      ],
+      "cuerpo": "Pagar justo y con respaldo.",
+      "escenarios": [
+        "Dado un productor inactivo, cuando entrega un lote, entonces se rechaza (RN-03).",
+        "Dado cacao seco al 9 % de humedad, cuando se liquida, entonces se descuenta solo el exceso sobre 7 % (RN-04)."
+      ]
+    },
+    {
+      "titulo": "[005] Fermentar y secar sin pasarse de capacidad",
+      "hito": "Entrega 5 · Campo y acopio",
+      "prioridad": "P1",
+      "spec": "specs/005-campo-acopio-poscosecha",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-05"
+      ],
+      "cuerpo": "No dañar el grano por sobrecarga.",
+      "escenarios": [
+        "Dado un fermentador de 1 000 kg con 600 kg, cuando se asignan 500 kg más, entonces se rechaza (RN-05)."
+      ]
+    },
+    {
+      "titulo": "[006] Calificar un lote de grano",
+      "hito": "Entrega 5 · Campo y acopio",
+      "prioridad": "P1",
+      "spec": "specs/006-calidad",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-06",
+        "rn-07"
+      ],
+      "cuerpo": "El grado no depende de quién lo mira.",
+      "escenarios": [
+        "Dado un análisis con 4 % de violeta y 1 % de moho, cuando Calidad lo registra, entonces el sistema asigna el grado según la tabla de límites (RN-06).",
+        "Dado un usuario de ACOPIO, cuando intenta aprobar un lote, entonces la API responde 403 (RN-07)."
+      ]
+    },
+    {
+      "titulo": "[006] Liberar producto terminado",
+      "hito": "Entrega 5 · Campo y acopio",
+      "prioridad": "P1",
+      "spec": "specs/006-calidad",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-11"
+      ],
+      "cuerpo": "Nada sale a la venta sin control.",
+      "escenarios": [
+        "Dado un lote de producto recién producido (todavía no liberado), cuando se intenta vender, entonces se rechaza hasta que Calidad lo libere (RN-11)."
+      ]
+    },
+    {
+      "titulo": "[007] Planificar y ejecutar una orden",
+      "hito": "Entrega 6 · Producción",
+      "prioridad": "P1",
+      "spec": "specs/007-produccion",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-08",
+        "rn-09",
+        "rn-10"
+      ],
+      "cuerpo": "Producir lo que se vende sin quedarse sin insumos.",
+      "escenarios": [
+        "Dado grano en estado RECHAZADO, cuando se elige como insumo, entonces se rechaza (RN-08).",
+        "Dado una orden que necesita 40 kg de pasta y hay 25, cuando se intenta iniciar, entonces se rechaza indicando el faltante (RN-09).",
+        "Dado una orden en proceso, cuando se cierra con la cantidad real, entonces se descuentan insumos, se crea el lote de producto y se calcula el costo unitario (RN-10)."
+      ]
+    },
+    {
+      "titulo": "[008] Alquilar maquinaria",
+      "hito": "Entrega 7 · Equipos y logística",
+      "prioridad": "P1",
+      "spec": "specs/008-equipos-logistica-mantenimiento",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-23",
+        "rn-24"
+      ],
+      "cuerpo": "Generar ingresos con equipos ociosos.",
+      "escenarios": [
+        "Dado un tractor alquilado del 10 al 15, cuando se pide del 14 al 18, entonces se rechaza por cruce (RN-23).",
+        "Dado un activo EN_MANTENIMIENTO o con SOAT vencido, cuando se intenta alquilar o asignar, entonces se rechaza (RN-24)."
+      ]
+    },
+    {
+      "titulo": "[008] Programar viajes",
+      "hito": "Entrega 7 · Equipos y logística",
+      "prioridad": "P1",
+      "spec": "specs/008-equipos-logistica-mantenimiento",
+      "etiquetas": [
+        "historia",
+        "p1",
+        "rn-25"
+      ],
+      "cuerpo": "Entregar sin sobrecargar.",
+      "escenarios": [
+        "Dado un camión de 3 500 kg, cuando se cargan 3 800 kg, entonces se rechaza (RN-25)."
+      ]
+    },
+    {
+      "titulo": "[008] Mantenimiento preventivo",
+      "hito": "Entrega 7 · Equipos y logística",
+      "prioridad": "P2",
+      "spec": "specs/008-equipos-logistica-mantenimiento",
+      "etiquetas": [
+        "historia",
+        "p2",
+        "rn-26"
+      ],
+      "cuerpo": "Evitar paradas no planificadas.",
+      "escenarios": [
+        "Dado un plan cada 90 días o 250 horas, cuando se cumplen 250 horas antes de 90 días, entonces se genera la orden preventiva (RN-26)."
+      ]
+    },
+    {
+      "titulo": "[009] Ver el estado del negocio",
+      "hito": "Entrega 8 · Analítica",
+      "prioridad": "P1",
+      "spec": "specs/009-paneles-informes-proyecciones",
+      "etiquetas": [
+        "historia",
+        "p1"
+      ],
+      "cuerpo": "Decidir con datos.",
+      "escenarios": [
+        "Dado el gerente, cuando abre el panel general y elige \"últimos 90 días\", entonces ve ventas, margen, stock valorizado y alertas con gráficos."
+      ]
+    },
+    {
+      "titulo": "[009] Descargar informes",
+      "hito": "Entrega 8 · Analítica",
+      "prioridad": "P2",
+      "spec": "specs/009-paneles-informes-proyecciones",
+      "etiquetas": [
+        "historia",
+        "p2"
+      ],
+      "cuerpo": "Llevar la información a reuniones y al contador.",
+      "escenarios": [
+        "Dado un informe de ventas, cuando se descarga en Excel, entonces contiene las mismas cifras que el panel."
+      ]
+    },
+    {
+      "titulo": "[009] Proyectar la temporada",
+      "hito": "Entrega 8 · Analítica",
+      "prioridad": "P2",
+      "spec": "specs/009-paneles-informes-proyecciones",
+      "etiquetas": [
+        "historia",
+        "p2"
+      ],
+      "cuerpo": "Planificar compras y personal.",
+      "escenarios": [
+        "Dado 12 meses de historia, cuando se abre Proyecciones, entonces se ve la cosecha esperada por mes con estacionalidad."
+      ]
+    },
+    {
+      "titulo": "[010] Tener datos realistas para la demo",
+      "hito": "Entrega 8 · Analítica",
+      "prioridad": "P1",
+      "spec": "specs/010-semilla-ci",
+      "etiquetas": [
+        "historia",
+        "p1"
+      ],
+      "cuerpo": "Mostrar paneles con historia.",
+      "escenarios": [
+        "Dado una base vacía, cuando se ejecuta `npm run seed`, entonces hay 12 meses de ventas, órdenes cerradas, cosechas y viajes, y las reglas rechazan lo que deben."
+      ]
+    },
+    {
+      "titulo": "[010] Saber si algo se rompió",
+      "hito": "Entrega 8 · Analítica",
+      "prioridad": "P1",
+      "spec": "specs/010-semilla-ci",
+      "etiquetas": [
+        "historia",
+        "p1"
+      ],
+      "cuerpo": "Revisar cada PR automáticamente.",
+      "escenarios": [
+        "Dado un Pull Request, cuando se abre hacia develop, entonces GitHub Actions corre lint, pruebas, builds y la semilla de 1 mes."
+      ]
+    }
+  ]
+}
