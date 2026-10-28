@@ -15,6 +15,7 @@ const TEXTOS: Record<string, string> = {
   EMITIDA: 'Emitida', ENVIADA: 'Enviada', ERROR_ENVIO: 'Error de envío', ANULADA: 'Anulada', PENDIENTE: 'Pendiente', PARCIAL: 'Abono parcial', PAGADA: 'Pagada',
   BORRADOR: 'Borrador', ACEPTADA: 'Aceptada', RECHAZADA: 'Rechazada', VENCIDA: 'Vencida',
   CONFIRMADO: 'Confirmado', PREPARANDO: 'Preparando', DESPACHADO: 'Despachado', FACTURADO: 'Facturado', ANULADO: 'Anulado',
+  CEDULA: 'Cédula', PASAPORTE: 'Pasaporte', CONSUMIDOR_FINAL: 'Consumidor final',
   MOSTRADOR: 'Mostrador', MAYORISTA: 'Mayorista', WEB: 'Web', CONSUMIDOR: 'Consumidor', DISTRIBUIDOR: 'Distribuidor', EXPORTADOR: 'Exportador',
   // producción
   PLANIFICADA: 'Planificada', EN_PROCESO: 'En proceso', TERMINADA: 'Terminada', ANULADA_OP: 'Anulada',
