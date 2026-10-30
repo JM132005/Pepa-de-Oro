@@ -1,0 +1,128 @@
+<!-- equipos.html → maquinaria y vehículos -->
+
+<section class="web-seccion" style="padding-top:2rem">
+  <div class="web-contenedor">
+    <div class="encabezado-pagina">
+      <div>
+        <span class="antetitulo">Equipos</span>
+        <h1>Maquinaria y vehículos</h1>
+        <p class="tenue">Venta de equipos nuevos y usados revisados por nuestro taller, y alquiler por día, semana o temporada.</p>
+      </div>
+    </div>
+
+    <div class="web-filtros">
+      <button type="button" class="web-chip" [class.activo]="filtro() === 'TODOS'" (click)="filtro.set('TODOS')">Todos</button>
+      <button type="button" class="web-chip" [class.activo]="filtro() === 'ALQUILER'" (click)="filtro.set('ALQUILER')">En alquiler</button>
+      <button type="button" class="web-chip" [class.activo]="filtro() === 'VENTA'" (click)="filtro.set('VENTA')">En venta</button>
+      <select style="width:auto;margin-left:auto" [ngModel]="tipo()" (ngModelChange)="tipo.set($event)" aria-label="Tipo de equipo">
+        <option value="">Todos los tipos</option>
+        @for (t of tipos(); track t) {
+          <option [value]="t">{{ texto(t) }}</option>
+        }
+      </select>
+    </div>
+
+    @if (equipos() === null) {
+      <app-cargando texto="Cargando equipos" />
+    } @else if (visibles().length) {
+      <div class="rejilla tres">
+        @for (e of visibles(); track e._id) {
+          <article class="web-equipo">
+            <div class="foto"><app-imagen [src]="e.imagen" [alt]="e.nombre" respaldo="img/equipos/generico.svg" /></div>
+            <div class="info">
+              <div class="fila entre">
+                <span class="tenue" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.06em">{{ texto(e.tipo) }} · {{ e.nuevo ? 'Nuevo' : 'Usado' }}</span>
+                <!-- La disponibilidad sale de los alquileres reales de la base -->
+                <span class="insignia" [class.tono-exito]="e.disponibilidad === 'Disponible'" [class.tono-aviso]="e.disponibilidad !== 'Disponible'">{{ e.disponibilidad }}</span>
+              </div>
+              <h3 style="margin:0">{{ e.nombre }}</h3>
+              <span class="tenue" style="font-size:0.85rem">{{ e.marca }} {{ e.modelo }} {{ e.anio ? '· ' + e.anio : '' }} {{ e.capacidad ? '· ' + e.capacidad : '' }}</span>
+              <div class="web-tarifas">
+                @if (e.enAlquiler && e.tarifas?.dia) {
+                  <span><strong>{{ dinero(e.tarifas!.dia!) }}</strong> /día</span>
+                }
+                @if (e.enAlquiler && e.tarifas?.semana) {
+                  <span><strong>{{ dinero(e.tarifas!.semana!) }}</strong> /semana</span>
+                }
+                @if (e.enVenta && e.precioVenta) {
+                  <span>Venta: <strong>{{ dinero(e.precioVenta) }}</strong></span>
+                }
+              </div>
+              <div class="acciones" style="margin-top:auto;padding-top:0.5rem">
+                <button class="btn btn-borde btn-sm" type="button" (click)="ficha.set(e)">Ficha técnica</button>
+                @if (e.enAlquiler) {
+                  <button class="btn btn-primario btn-sm" type="button" (click)="pedido.set({ equipo: e, modo: 'ALQUILER' })">Pedir alquiler</button>
+                }
+                @if (e.enVenta) {
+                  <button class="btn btn-oro btn-sm" type="button" (click)="pedido.set({ equipo: e, modo: 'COMPRA' })">Me interesa comprar</button>
+                }
+              </div>
+            </div>
+          </article>
+        }
+      </div>
+    } @else {
+      <app-vacio texto="No hay equipos con ese filtro." />
+    }
+  </div>
+</section>
+
+<!-- Ficha técnica -->
+@if (ficha(); as e) {
+  <app-modal [titulo]="e.nombre" ancho="ancho" (cerrar)="ficha.set(null)">
+    <div class="rejilla dos">
+      <div style="aspect-ratio:4/3;border-radius:var(--radio);overflow:hidden;background:var(--crema)"><app-imagen [src]="e.imagen" [alt]="e.nombre" respaldo="img/equipos/generico.svg" /></div>
+      <div>
+        @if (e.descripcion) {
+          <p>{{ e.descripcion }}</p>
+        }
+        <dl class="datos">
+          <dt>Código</dt><dd>{{ e.codigo }}</dd>
+          @if (e.marca) { <dt>Marca / modelo</dt><dd>{{ e.marca }} {{ e.modelo }}</dd> }
+          @if (e.anio) { <dt>Año</dt><dd>{{ e.anio }}</dd> }
+          @if (e.horometro) { <dt>Horómetro</dt><dd>{{ numero(e.horometro, 0) }} h</dd> }
+          @if (e.odometro) { <dt>Odómetro</dt><dd>{{ numero(e.odometro, 0) }} km</dd> }
+          @for (f of e.fichaTecnica; track f.etiqueta) {
+            <dt>{{ f.etiqueta }}</dt><dd>{{ f.valor }}</dd>
+          }
+          @if (e.enAlquiler) {
+            @if (e.tarifaOperadorDia) { <dt>Con operador</dt><dd>+ {{ dinero(e.tarifaOperadorDia) }} por día</dd> }
+            @if (e.garantia) { <dt>Garantía</dt><dd>{{ dinero(e.garantia) }} (se devuelve al entregar el equipo)</dd> }
+          }
+        </dl>
+        @if (e.ocupado.length) {
+          <h3 style="margin-top:1rem">Fechas ocupadas</h3>
+          <ul class="tenue">
+            @for (o of e.ocupado; track o.desde) {
+              <li>{{ fecha(o.desde) }} al {{ fecha(o.hasta) }}</li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+  </app-modal>
+}
+
+<!-- Pedido de alquiler o de compra -->
+@if (pedido(); as p) {
+  <app-modal [titulo]="(p.modo === 'ALQUILER' ? 'Alquilar: ' : 'Comprar: ') + p.equipo.nombre" (cerrar)="pedido.set(null)">
+    @if (p.modo === 'ALQUILER') {
+      <div class="rejilla-form">
+        <div class="campo">
+          <label for="desde">Desde</label>
+          <input id="desde" type="date" [min]="hoy" [ngModel]="desde()" (ngModelChange)="desde.set($event)" />
+        </div>
+        <div class="campo">
+          <label for="hasta">Hasta</label>
+          <input id="hasta" type="date" [min]="desde()" [ngModel]="hasta()" (ngModelChange)="hasta.set($event)" />
+        </div>
+      </div>
+      @if (choque(); as c) {
+        <div class="aviso peligro">Esas fechas se cruzan con un alquiler del {{ fecha(c.desde) }} al {{ fecha(c.hasta) }}. Elige otras fechas.</div>
+      } @else {
+        <div class="aviso oro">{{ dias() }} día(s) · costo referencial {{ dinero(estimado(p.equipo)) }} + IVA. El asesor te confirma el precio final.</div>
+      }
+    }
+    <app-formulario-solicitud [ocupado]="enviando()" [textoBoton]="p.modo === 'ALQUILER' ? 'Pedir alquiler' : 'Pedir información'" (enviar)="enviar($event)" />
+  </app-modal>
+}

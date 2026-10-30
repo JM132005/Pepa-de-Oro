@@ -1,0 +1,15 @@
+<!-- layout-publico.html → estructura de TODAS las páginas públicas -->
+
+<!-- Enlace "saltar al contenido": quien navega con teclado o lector de pantalla no tiene que pasar por todo el menú -->
+<a href="#contenido" class="campo-trampa">Saltar al contenido</a>
+
+<app-cabecera />
+
+<!-- <main>: el contenido principal. Aquí Angular dibuja la página que corresponde a la URL. -->
+<main id="contenido">
+  <router-outlet />
+</main>
+
+<app-pie />
+<app-boton-whatsapp />
+<app-panel-interes />

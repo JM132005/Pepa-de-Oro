@@ -1,0 +1,114 @@
+<!-- inventario.html → stock, lotes, kardex, vencimientos, compras y movimientos -->
+
+<div class="encabezado-pagina">
+  <div><h1>Inventario</h1><p class="tenue">El stock es la suma de los movimientos: nada se cambia "a mano" sin dejar rastro.</p></div>
+</div>
+
+<div class="adm-resumen">
+  <div class="adm-dato"><span>Valor del inventario</span><strong>{{ dinero(valorizado()?.total ?? 0) }}</strong></div>
+  <div class="adm-dato" [class.peligro]="bajos() > 0"><span>Bajo el mínimo</span><strong>{{ bajos() }}</strong></div>
+  <div class="adm-dato" [class.peligro]="vencidos() > 0"><span>Lotes vencidos</span><strong>{{ vencidos() }}</strong></div>
+  <div class="adm-dato"><span>Lotes por vencer (90 días)</span><strong>{{ porVencer().length - vencidos() }}</strong></div>
+</div>
+
+<nav class="pestanas">
+  <button type="button" [class.activa]="pestana() === 'stock'" (click)="cambiar('stock')">Stock</button>
+  <button type="button" [class.activa]="pestana() === 'lotes'" (click)="cambiar('lotes')">Lotes</button>
+  <button type="button" [class.activa]="pestana() === 'kardex'" (click)="cambiar('kardex')">Kardex</button>
+  <button type="button" [class.activa]="pestana() === 'vencer'" (click)="cambiar('vencer')">Por vencer</button>
+  @if (auth.tieneRol('BODEGA')) { <button type="button" [class.activa]="pestana() === 'compras'" (click)="cambiar('compras')">Compras</button> }
+  <button type="button" [class.activa]="pestana() === 'movimientos'" (click)="cambiar('movimientos')">Movimientos</button>
+</nav>
+
+@switch (pestana()) {
+  @case ('stock') {
+    <div class="fila" style="margin-bottom:0.75rem">
+      <select style="width:auto" [ngModel]="tipoStock()" (ngModelChange)="tipoStock.set($event)" aria-label="Tipo">
+        <option value="">Todos los tipos</option>
+        @for (t of ['TERMINADO', 'GRANO', 'SEMIELABORADO', 'INSUMO', 'REPUESTO']; track t) { <option [value]="t">{{ texto(t) }}</option> }
+      </select>
+      <label class="fila"><input type="checkbox" [checked]="soloBajos()" (change)="soloBajos.set(!soloBajos())" /> Solo agotados o con pocas unidades</label>
+    </div>
+    <app-tabla [filas]="stockFiltrado()" [columnas]="columnasStock" [clicable]="true" (seleccion)="verKardex($event.productoId)" nombreArchivo="stock" />
+    <p class="tenue" style="font-size:0.8rem">Clic en un producto para ver su kardex. "Disponible" = liberado por Calidad, sin vencer y sin reservar.</p>
+  }
+  @case ('lotes') {
+    <div class="fila" style="margin-bottom:0.75rem">
+      <select style="width:auto" [ngModel]="bodegaLotes()" (ngModelChange)="bodegaLotes.set($event); cargarLotes()" aria-label="Bodega">
+        <option value="">Todas las bodegas</option>
+        @for (b of bodegas(); track b._id) { <option [value]="b._id">{{ b.nombre }}</option> }
+      </select>
+    </div>
+    <app-tabla [filas]="lotes()" [columnas]="columnasLotes" [acciones]="botonesLote" nombreArchivo="lotes" />
+    <ng-template #botonesLote let-l>
+      @if (auth.tieneRol('BODEGA') && l.cantidad - l.reservado > 0) {
+        <button class="btn btn-borde btn-sm" type="button" (click)="prepararAccion('transferir', l)">Transferir</button>
+      }
+      @if (auth.esGerente()) {
+        <button class="btn-icono" type="button" title="Ajustar por conteo" (click)="prepararAccion('ajustar', l)"><app-icono nombre="editar" /></button>
+        <button class="btn-icono" type="button" title="Dar de baja" (click)="prepararAccion('baja', l)"><app-icono nombre="cerrar" /></button>
+      }
+      @if (l.codigo.startsWith('PT-')) {
+        <button class="btn-icono" type="button" title="Etiquetas con QR" (click)="etiquetas(l)"><app-icono nombre="qr" /></button>
+      }
+    </ng-template>
+  }
+  @case ('kardex') {
+    <div class="fila" style="margin-bottom:0.75rem">
+      <select style="flex:1;min-width:240px" [ngModel]="productoKardex()" (ngModelChange)="verKardex($event)" aria-label="Producto">
+        <option value="">— Elige un producto —</option>
+        @for (p of productos(); track p._id) { <option [value]="p._id">{{ p.sku }} · {{ p.nombre }}</option> }
+      </select>
+      <button class="btn btn-borde btn-sm" type="button" [disabled]="!productoKardex()" (click)="descargarKardex()"><app-icono nombre="excel" /> Excel</button>
+    </div>
+    <app-tabla [filas]="kardex()" [columnas]="columnasKardex" vacio="Elige un producto para ver su kardex" nombreArchivo="kardex" />
+  }
+  @case ('vencer') {
+    <app-tabla [filas]="porVencer()" [columnas]="columnasVencer" [acciones]="botonesVencer" nombreArchivo="por-vencer" />
+    <ng-template #botonesVencer let-l>
+      @if (auth.esGerente() && l.tramo === 'VENCIDO') {
+        <button class="btn btn-peligro btn-sm" type="button" (click)="prepararAccion('baja', l)">Dar de baja</button>
+      }
+    </ng-template>
+    <p class="tenue" style="font-size:0.8rem"><span class="rn">RN-14</span> Un lote vencido no se puede vender: el sistema lo salta en la caja y en los pedidos (FEFO, <span class="rn">RN-13</span>).</p>
+  }
+  @case ('compras') {
+    <div class="tarjeta" style="max-width:820px">
+      <h3>Ingresar compra a bodega</h3>
+      <app-formulario-dinamico [campos]="camposCompra()" [ocupado]="ocupado()" textoBoton="Registrar entrada" (guardar)="comprar($event)" />
+    </div>
+  }
+  @case ('movimientos') {
+    <app-tabla [filas]="movimientos()" [columnas]="columnasMov" nombreArchivo="movimientos" />
+  }
+}
+
+<!-- Transferir / ajustar / dar de baja -->
+@if (accion(); as a) {
+  <app-modal [titulo]="(a.tipo === 'transferir' ? 'Transferir lote ' : a.tipo === 'ajustar' ? 'Ajustar lote ' : 'Dar de baja el lote ') + a.lote.codigo" (cerrar)="accion.set(null)">
+    <p class="tenue">{{ $any(a.lote.producto).nombre }} · {{ $any(a.lote.bodega).nombre ?? $any(a.lote.bodega).codigo }} · cantidad {{ numero(a.lote.cantidad) }} (reservado {{ numero(a.lote.reservado) }})</p>
+    @if (a.tipo === 'transferir') {
+      <div class="campo">
+        <label for="dest">Bodega de destino</label>
+        <select id="dest" [ngModel]="destino()" (ngModelChange)="destino.set($event)">
+          <option value="">— Elegir —</option>
+          @for (b of bodegas(); track b._id) { @if (b._id !== $any(a.lote.bodega)._id) { <option [value]="b._id">{{ b.nombre }}</option> } }
+        </select>
+      </div>
+    }
+    @if (a.tipo !== 'baja') {
+      <div class="campo">
+        <label for="cant">{{ a.tipo === 'ajustar' ? 'Cantidad contada físicamente' : 'Cantidad a transferir' }}</label>
+        <input id="cant" type="number" min="0" step="any" [ngModel]="cantidad()" (ngModelChange)="cantidad.set(+$event)" />
+      </div>
+    }
+    @if (a.tipo !== 'transferir') {
+      <div class="campo">
+        <label for="mot">Motivo (mínimo 10 caracteres) <span class="rn">RN-15</span></label>
+        <textarea id="mot" rows="2" [ngModel]="motivo()" (ngModelChange)="motivo.set($event)"></textarea>
+      </div>
+      <div class="aviso oro">Acción sensible: queda registrada en la bitácora de auditoría con el valor anterior y el nuevo.</div>
+    }
+    <button class="btn btn-primario" type="button" [disabled]="ocupado() || (a.tipo === 'transferir' && (!destino() || cantidad() <= 0)) || (a.tipo !== 'transferir' && motivo().trim().length < 10)" (click)="confirmarAccion()">Confirmar</button>
+  </app-modal>
+}

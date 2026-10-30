@@ -1,0 +1,94 @@
+<!-- editor-lineas.html → buscador de productos + tabla de líneas + totales -->
+
+<div class="fila" style="position:relative;margin-bottom:0.6rem">
+  <label class="fila" style="flex:1;min-width:240px;background:var(--superficie);border:1px solid var(--borde);border-radius:999px;padding:0 0.75rem">
+    <app-icono nombre="buscar" />
+    <input
+      style="border:none;outline:none;background:transparent"
+      placeholder="Buscar producto o escanear código (SKU)…"
+      [ngModel]="busqueda()"
+      (ngModelChange)="busqueda.set($event)"
+      (keydown.enter)="$event.preventDefault(); alEnter()"
+      aria-label="Buscar producto"
+    />
+  </label>
+  @if (permitirServicios()) {
+    <button class="btn btn-borde btn-sm" type="button" (click)="agregarServicio()"><app-icono nombre="mas" [tam]="16" /> Servicio</button>
+  }
+  <!-- Lista desplegable de coincidencias -->
+  @if (coincidencias().length) {
+    <div class="adm-desplegable" style="left:0;right:auto;width:min(560px,100%)">
+      @for (p of coincidencias(); track p._id) {
+        <button type="button" class="adm-alerta" style="width:100%;border:none;background:none;text-align:left;cursor:pointer" (click)="agregar(p)">
+          <span style="flex:1"><strong>{{ p.nombre }}</strong><br /><span class="tenue mono">{{ p.sku }}</span></span>
+          <span class="derecha">
+            {{ dinero(p.precioMenor) }}<br />
+            <span class="tenue" style="font-size:0.78rem" [style.color]="(p.stock?.disponible ?? 0) <= 0 ? 'var(--peligro)' : null">stock {{ numero(p.stock?.disponible ?? 0, 1) }}</span>
+          </span>
+        </button>
+      }
+    </div>
+  }
+</div>
+
+@if (lineas().length) {
+  <div class="tabla-contenedor adm-lineas">
+    <table>
+      <thead>
+        <tr>
+          <th>Producto / servicio</th>
+          <th class="num">Cantidad</th>
+          <th class="num">Precio</th>
+          <th class="num">Desc. %</th>
+          <th class="num">Subtotal</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (l of lineas(); track $index; let i = $index) {
+          <tr>
+            <td>
+              @if (l.tipo === 'PRODUCTO') {
+                <strong>{{ l.producto!.nombre }}</strong><br />
+                <span class="tenue mono">{{ l.producto!.sku }}</span>
+                <span class="tenue" style="font-size:0.75rem"> · {{ precio(l).regla }} · IVA {{ canal() === 'EXPORTACION' ? 0 : l.producto!.tarifaIva }} %</span>
+                @if (l.cantidad > (l.producto!.stock?.disponible ?? 0)) {
+                  <br /><span class="error-campo">Stock disponible: {{ numero(l.producto!.stock?.disponible ?? 0, 1) }}</span>
+                }
+              } @else {
+                <input [ngModel]="l.descripcion" (ngModelChange)="cambiar(l, { descripcion: $event })" placeholder="Descripción del servicio" style="width:100%;text-align:left" />
+                <label class="tenue" style="font-size:0.78rem">IVA
+                  <select [ngModel]="l.tarifaIva" (ngModelChange)="cambiar(l, { tarifaIva: +$event })" style="width:auto;padding:0.15rem">
+                    <option [ngValue]="15">15 %</option>
+                    <option [ngValue]="0">0 % (transporte)</option>
+                  </select>
+                </label>
+              }
+            </td>
+            <td class="num"><input type="number" min="0.001" step="any" [ngModel]="l.cantidad" (ngModelChange)="cambiar(l, { cantidad: +$event || 1 })" [attr.aria-label]="'Cantidad línea ' + (i + 1)" /></td>
+            <td class="num">
+              @if (l.tipo === 'SERVICIO') {
+                <input type="number" min="0" step="0.01" [ngModel]="l.precioManual" (ngModelChange)="cambiar(l, { precioManual: +$event })" aria-label="Precio" />
+              } @else {
+                {{ dinero(precio(l).precio) }}
+              }
+            </td>
+            <td class="num"><input type="number" min="0" max="100" step="0.5" [ngModel]="l.descuentoPct" (ngModelChange)="cambiar(l, { descuentoPct: +$event || 0 })" style="width:64px" aria-label="Descuento" /></td>
+            <td class="num">{{ dinero(subtotalLinea(i)) }}</td>
+            <td><button class="btn-icono" type="button" (click)="quitar(l)" aria-label="Quitar línea"><app-icono nombre="cerrar" [tam]="16" /></button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="adm-totales" style="max-width:340px;margin:0.75rem 0 0 auto">
+    <span class="tenue">Subtotal 15 %</span><span class="derecha">{{ dinero(totales().subtotalIva) }}</span>
+    <span class="tenue">Subtotal 0 %</span><span class="derecha">{{ dinero(totales().subtotal0) }}</span>
+    <span class="tenue">Descuento</span><span class="derecha">{{ dinero(totales().descuento) }}</span>
+    <span class="tenue">IVA</span><span class="derecha">{{ dinero(totales().iva) }}</span>
+    <strong>Total</strong><span class="derecha total">{{ dinero(totales().total) }}</span>
+  </div>
+  <p class="tenue" style="font-size:0.78rem;text-align:right;margin-top:0.3rem"><span class="rn">RN-17</span> El descuento máximo depende de tu rol (ventas 5 %, gerente sin tope).</p>
+} @else {
+  <p class="tenue" style="padding:1rem;text-align:center;border:1px dashed var(--borde);border-radius:var(--radio)">Busca un producto o escanea su código para empezar.</p>
+}

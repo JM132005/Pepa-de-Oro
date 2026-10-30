@@ -1,0 +1,202 @@
+<!-- acopio.html → báscula, liquidaciones, productores y precio del día -->
+
+<div class="encabezado-pagina">
+  <div><h1>Acopio y productores</h1><p class="tenue">Compra de cacao y café con peso, humedad y descuentos a la vista del productor.</p></div>
+</div>
+
+<div class="adm-resumen">
+  @for (p of precios().slice(0, 4); track p._id) {
+    <div class="adm-dato"><span>{{ texto(p.cultivo) }} {{ texto(p.variedad) }} {{ texto(p.estado).toLowerCase() }}</span><strong>{{ dinero(p.precioQq) }} <small>/qq</small></strong></div>
+  }
+</div>
+
+<nav class="pestanas">
+  @if (puedeOperar()) { <button type="button" [class.activa]="pestana() === 'recepcion'" (click)="cambiar('recepcion')">Recepción (báscula)</button> }
+  <button type="button" [class.activa]="pestana() === 'liquidaciones'" (click)="cambiar('liquidaciones')">Liquidaciones</button>
+  <button type="button" [class.activa]="pestana() === 'productores'" (click)="cambiar('productores')">Productores ({{ productores().length }})</button>
+  <button type="button" [class.activa]="pestana() === 'precios'" (click)="cambiar('precios')">Precio del día</button>
+</nav>
+
+@switch (pestana()) {
+  @case ('recepcion') {
+    <div class="rejilla dos" style="align-items:start">
+      <section class="tarjeta">
+        <h3>1. Productor</h3>
+        @if (productor(); as p) {
+          <div class="fila entre">
+            <div><strong>{{ p.nombre }}</strong><div class="tenue" style="font-size:0.82rem">{{ p.cedula }} · {{ p.canton }} · {{ p.finca }}</div></div>
+            <button class="btn btn-borde btn-sm" type="button" (click)="productor.set(null)">Cambiar</button>
+          </div>
+          @if (!p.activo) { <div class="aviso peligro" style="margin-top:0.5rem"><span class="rn">RN-03</span> Productor inactivo: {{ p.motivoInactivo }}. No puede entregar.</div> }
+          @if (p.saldoAnticipo > 0) { <p class="tenue" style="font-size:0.85rem">Debe {{ dinero(p.saldoAnticipo) }} de anticipos.</p> }
+        } @else {
+          <div style="position:relative">
+            <input placeholder="Buscar por nombre o cédula…" [ngModel]="buscarProductor()" (ngModelChange)="buscarProductor.set($event)" aria-label="Buscar productor" />
+            @if (coincidencias().length) {
+              <div class="adm-desplegable" style="left:0;width:100%">
+                @for (p of coincidencias(); track p._id) {
+                  <button type="button" class="adm-alerta" style="width:100%;border:none;background:none;text-align:left;cursor:pointer" (click)="elegirProductor(p)">
+                    <span><strong>{{ p.nombre }}</strong> {{ p.activo ? '' : '(inactivo)' }}<br /><span class="tenue">{{ p.cedula }} · {{ p.canton }}</span></span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <h3 style="margin-top:1.25rem">2. Producto y báscula</h3>
+        <div class="rejilla-form">
+          <div class="campo">
+            <label for="cul">Cultivo</label>
+            <select id="cul" [ngModel]="cultivo()" (ngModelChange)="cambiarCultivo($event)">@for (c of ['CACAO', 'CAFE']; track c) { <option [value]="c">{{ texto(c) }}</option> }</select>
+          </div>
+          <div class="campo">
+            <label for="var">Variedad</label>
+            <select id="var" [ngModel]="variedad()" (ngModelChange)="variedad.set($event)">@for (v of variedades(); track v) { <option [value]="v">{{ texto(v) }}</option> }</select>
+          </div>
+          <div class="campo">
+            <label for="est">Estado de entrega</label>
+            <select id="est" [ngModel]="estadoEntrega()" (ngModelChange)="estadoEntrega.set($event)">@for (e of estados(); track e) { <option [value]="e">{{ texto(e) }}</option> }</select>
+          </div>
+          <div class="campo"><label for="pre">Precio por qq (vacío = precio del día {{ dinero(precioDelDia()) }})</label><input id="pre" type="number" min="0" step="0.01" [ngModel]="precioManual()" (ngModelChange)="precioManual.set($event === '' || $event === null ? null : +$event)" /></div>
+          <div class="campo"><label for="kgb">Kg brutos *</label><input id="kgb" type="number" min="1" step="0.1" [ngModel]="kgBrutos()" (ngModelChange)="kgBrutos.set(+$event)" /></div>
+          <div class="campo"><label for="tar">Tara (sacos) kg</label><input id="tar" type="number" min="0" step="0.1" [ngModel]="tara()" (ngModelChange)="tara.set(+$event)" /></div>
+          <div class="campo"><label for="hum">Humedad % *</label><input id="hum" type="number" min="0" max="80" step="0.1" [ngModel]="humedad()" (ngModelChange)="humedad.set(+$event)" /></div>
+          <div class="campo"><label for="imp">Impurezas %</label><input id="imp" type="number" min="0" max="30" step="0.1" [ngModel]="impurezas()" (ngModelChange)="impurezas.set(+$event)" /></div>
+        </div>
+        <label class="fila" style="font-size:0.88rem"><input type="checkbox" [checked]="descontarAnticipo()" (change)="descontarAnticipo.set(!descontarAnticipo())" /> Descontar anticipos pendientes</label>
+        <button class="btn btn-primario" type="button" style="margin-top:0.75rem;width:100%" [disabled]="ocupado() || !productor() || !productor()!.activo || !kgBrutos() || humedad() === null" (click)="recibir()"><app-icono nombre="acopio" /> Registrar recepción y liquidar</button>
+      </section>
+
+      <section>
+        @if (estimado(); as e) {
+          <div class="tarjeta" style="margin-bottom:1rem">
+            <h3>Vista previa</h3>
+            <div class="adm-totales">
+              <span class="tenue">Kg netos (brutos − tara)</span><span class="derecha">{{ numero(e.netos) }}</span>
+              <span class="tenue">− Descuento por humedad (exceso sobre 7 %, RN-04)</span><span class="derecha">{{ numero(e.descHum) }}</span>
+              <span class="tenue">− Descuento por impurezas</span><span class="derecha">{{ numero(e.descImp) }}</span>
+              <span><strong>Kg pagables</strong></span><span class="derecha"><strong>{{ numero(e.pagables) }}</strong></span>
+              <span class="tenue">Quintales (÷ 45,36)</span><span class="derecha">{{ numero(e.quintales) }}</span>
+              <strong>Subtotal estimado</strong><span class="derecha total">{{ dinero(e.subtotal) }}</span>
+            </div>
+            <p class="tenue" style="font-size:0.8rem;margin-top:0.5rem">El total final suma el bono orgánico (si aplica) y resta la retención y los anticipos.</p>
+          </div>
+        }
+        @if (resultado(); as r) {
+          <div class="tarjeta">
+            <div class="aviso exito">✓ Liquidación {{ r.liquidacion.numero }} · lote <strong>{{ r.lote.codigo }}</strong> creado.</div>
+            <dl class="datos">
+              <dt>Productor</dt><dd>{{ r.liquidacion.productor.nombre }}</dd>
+              <dt>Kg pagables</dt><dd>{{ numero(r.liquidacion.kgPagables) }} ({{ numero(r.liquidacion.quintales) }} qq)</dd>
+              <dt>Subtotal</dt><dd>{{ dinero(r.liquidacion.subtotal) }}</dd>
+              @for (b of r.liquidacion.bonos; track b.concepto) { <dt>{{ b.concepto }}</dt><dd>+ {{ dinero(b.monto) }}</dd> }
+              <dt>Retención</dt><dd>− {{ dinero(r.liquidacion.retencion) }}</dd>
+              <dt>Anticipo descontado</dt><dd>− {{ dinero(r.liquidacion.anticipoDescontado) }}</dd>
+              <dt><strong>Total a pagar</strong></dt><dd><strong>{{ dinero(r.liquidacion.totalPagar) }}</strong></dd>
+              <dt>Kg secos esperados</dt><dd>{{ numero(r.kgSecosEstimados) }}</dd>
+            </dl>
+            <div class="acciones" style="margin-top:0.75rem">
+              <button class="btn btn-primario btn-sm" type="button" (click)="pdfLiquidacion(r.liquidacion)"><app-icono nombre="pdf" /> Imprimir liquidación</button>
+              <button class="btn btn-borde btn-sm" type="button" (click)="pago.set({ liquidacion: r.liquidacion, monto: r.liquidacion.saldo, forma: 'EFECTIVO', referencia: '' })">Pagar ahora</button>
+              <a class="btn btn-borde btn-sm" [routerLink]="['/admin/poscosecha', r.lote._id]">Ver lote</a>
+            </div>
+          </div>
+        }
+      </section>
+    </div>
+  }
+  @case ('liquidaciones') {
+    <div class="fila entre" style="margin-bottom:0.75rem">
+      <div class="web-filtros" style="margin:0">
+        @for (e of ['PENDIENTE', 'PARCIAL', 'PAGADA', '']; track e) {
+          <button type="button" class="web-chip" [class.activo]="estadoPago() === e" (click)="estadoPago.set(e); cargarLiquidaciones()">{{ e ? texto(e) : 'Todas' }}</button>
+        }
+      </div>
+      <span class="tenue">Saldo de la lista: <strong>{{ dinero(porPagar()) }}</strong></span>
+    </div>
+    <app-tabla [filas]="liquidaciones()" [columnas]="columnasLiq" [acciones]="botonesLiq" nombreArchivo="liquidaciones" />
+    <ng-template #botonesLiq let-l>
+      <button class="btn-icono" type="button" title="PDF" (click)="pdfLiquidacion(l)"><app-icono nombre="pdf" /></button>
+      @if (puedeOperar() && l.saldo > 0.005) {
+        <button class="btn btn-borde btn-sm" type="button" (click)="pago.set({ liquidacion: l, monto: l.saldo, forma: 'TRANSFERENCIA', referencia: '' })">Pagar</button>
+      }
+    </ng-template>
+  }
+  @case ('productores') {
+    @if (puedeOperar()) { <button class="btn btn-primario btn-sm" type="button" style="margin-bottom:0.75rem" (click)="editando.set({ activo: true, cultivos: ['CACAO'] })"><app-icono nombre="mas" [tam]="14" /> Nuevo productor</button> }
+    <app-tabla [filas]="productores()" [columnas]="columnasProd" [clicable]="true" (seleccion)="verProductor($event)" [acciones]="botonesProd" nombreArchivo="productores" />
+    <ng-template #botonesProd let-p>
+      @if (puedeOperar()) {
+        <button class="btn-icono" type="button" title="Editar" (click)="editando.set(p)"><app-icono nombre="editar" /></button>
+        <button class="btn btn-borde btn-sm" type="button" (click)="anticipo.set({ productor: p, monto: 100, motivo: '' })">Anticipo</button>
+      }
+    </ng-template>
+  }
+  @case ('precios') {
+    @if (puedeOperar()) { <button class="btn btn-primario btn-sm" type="button" style="margin-bottom:0.75rem" (click)="registrandoPrecio.set(true)"><app-icono nombre="mas" [tam]="14" /> Publicar precio</button> }
+    <app-tabla [filas]="precios()" [columnas]="columnasPrecios" [buscador]="false" />
+    <section class="tarjeta" style="margin-top:1rem"><app-grafico [datos]="graficoPrecios()" [titulo]="'Evolución del precio por quintal'" /></section>
+  }
+}
+
+<!-- Pago a productor -->
+@if (pago(); as p) {
+  <app-modal [titulo]="'Pagar liquidación ' + p.liquidacion.numero" (cerrar)="pago.set(null)">
+    <p>{{ p.liquidacion.productor.nombre }} · saldo <strong>{{ dinero(p.liquidacion.saldo) }}</strong></p>
+    <div class="rejilla-form">
+      <div class="campo"><label for="pm">Monto</label><input id="pm" type="number" min="0.01" step="0.01" [ngModel]="p.monto" (ngModelChange)="pago.set({ liquidacion: p.liquidacion, monto: +$event, forma: p.forma, referencia: p.referencia })" /></div>
+      <div class="campo">
+        <label for="pf">Forma</label>
+        <select id="pf" [ngModel]="p.forma" (ngModelChange)="pago.set({ liquidacion: p.liquidacion, monto: p.monto, forma: $event, referencia: p.referencia })"><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option></select>
+      </div>
+      <div class="campo ancho-completo"><label for="pr">Referencia</label><input id="pr" [ngModel]="p.referencia" (ngModelChange)="pago.set({ liquidacion: p.liquidacion, monto: p.monto, forma: p.forma, referencia: $event })" /></div>
+    </div>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado() || p.monto <= 0 || p.monto > p.liquidacion.saldo + 0.005" (click)="pagar()">Registrar pago</button>
+  </app-modal>
+}
+
+<!-- Ficha del productor -->
+@if (fichaProductor(); as p) {
+  <app-modal [titulo]="p.nombre" ancho="ancho" (cerrar)="fichaProductor.set(null)">
+    <div class="rejilla dos">
+      <dl class="datos">
+        <dt>Cédula</dt><dd>{{ p.cedula }}</dd>
+        <dt>Finca</dt><dd>{{ p.finca }} · {{ p.canton }} · {{ p.hectareas }} ha</dd>
+        <dt>Teléfono</dt><dd>{{ p.telefono ?? '—' }}</dd>
+        <dt>Cuenta</dt><dd>{{ p.cuentaBancaria ? p.cuentaBancaria.banco + ' · ' + texto(p.cuentaBancaria.tipo) + ' ' + p.cuentaBancaria.numero : '—' }}</dd>
+        <dt>Certificaciones</dt><dd>@for (c of p.certificaciones; track c.tipo) { {{ texto(c.tipo) }} (vence {{ fecha(c.vence) }}) } @empty { — }</dd>
+      </dl>
+      <div class="adm-resumen" style="grid-template-columns:repeat(2,1fr)">
+        <div class="adm-dato"><span>Kg entregados</span><strong>{{ numero(p.kgEntregados ?? 0, 0) }}</strong></div>
+        <div class="adm-dato" [class.peligro]="(p.porPagar ?? 0) > 0"><span>Por pagarle</span><strong>{{ dinero(p.porPagar ?? 0) }}</strong></div>
+        <div class="adm-dato"><span>Anticipos</span><strong>{{ dinero(p.saldoAnticipo) }}</strong></div>
+        <div class="adm-dato"><span>Calificación de calidad</span><strong>{{ numero(p.calificacion, 1) }}</strong></div>
+      </div>
+    </div>
+    @if (p.liquidaciones?.length) {
+      <h3 style="margin-top:1rem">Últimas liquidaciones</h3>
+      <app-tabla [filas]="p.liquidaciones!" [columnas]="columnasLiq" [buscador]="false" [porPagina]="8" />
+    }
+  </app-modal>
+}
+
+@if (editando(); as p) {
+  <app-modal [titulo]="p._id ? 'Editar ' + p.nombre : 'Nuevo productor'" ancho="ancho" (cerrar)="editando.set(null)">
+    <app-formulario-dinamico [campos]="campos" [valores]="p" [ocupado]="ocupado()" (guardar)="guardarProductor($event)" />
+  </app-modal>
+}
+
+@if (anticipo(); as a) {
+  <app-modal [titulo]="'Anticipo a ' + a.productor.nombre" (cerrar)="anticipo.set(null)">
+    <div class="campo"><label for="am">Monto</label><input id="am" type="number" min="1" [ngModel]="a.monto" (ngModelChange)="anticipo.set({ productor: a.productor, monto: +$event, motivo: a.motivo })" /></div>
+    <div class="campo"><label for="amot">Motivo</label><input id="amot" placeholder="Ej: Para fertilización" [ngModel]="a.motivo" (ngModelChange)="anticipo.set({ productor: a.productor, monto: a.monto, motivo: $event })" /></div>
+    <button class="btn btn-primario" type="button" [disabled]="ocupado() || a.monto <= 0" (click)="darAnticipo()">Registrar anticipo</button>
+  </app-modal>
+}
+
+@if (registrandoPrecio()) {
+  <app-modal titulo="Publicar precio del día" (cerrar)="registrandoPrecio.set(false)">
+    <app-formulario-dinamico [campos]="camposPrecio" [valores]="{ cultivo: 'CACAO', variedad: 'CCN51', estado: 'SECO' }" [ocupado]="ocupado()" textoBoton="Publicar" (guardar)="registrarPrecio($event)" />
+  </app-modal>
+}

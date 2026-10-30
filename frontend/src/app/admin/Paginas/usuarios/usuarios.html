@@ -1,0 +1,14 @@
+<!-- usuarios.html → cuentas y roles -->
+
+<div class="encabezado-pagina">
+  <div><h1>Usuarios</h1><p class="tenue">9 roles; un usuario puede tener varios. El menú muestra solo lo que sus roles permiten.</p></div>
+  <button class="btn btn-primario" type="button" (click)="editando.set({ roles: [] })"><app-icono nombre="mas" /> Nuevo usuario</button>
+</div>
+
+<app-tabla [filas]="usuarios()" [columnas]="columnas" [clicable]="true" (seleccion)="editando.set($event)" nombreArchivo="usuarios" />
+
+@if (editando(); as u) {
+  <app-modal [titulo]="u._id ? 'Editar ' + u.nombre : 'Nuevo usuario'" ancho="ancho" (cerrar)="editando.set(null)">
+    <app-formulario-dinamico [campos]="campos()" [valores]="u" [ocupado]="ocupado()" (guardar)="guardar($event)" />
+  </app-modal>
+}

@@ -1,0 +1,96 @@
+<!-- pedidos.html → tablero de pedidos por estado -->
+
+<div class="encabezado-pagina">
+  <div>
+    <h1>Pedidos</h1>
+    <p class="tenue">El stock queda reservado desde que se confirma el pedido hasta que se factura.</p>
+  </div>
+  <div class="acciones">
+    <button class="btn btn-borde btn-sm" type="button" (click)="vista.set(vista() === 'tablero' ? 'lista' : 'tablero')"><app-icono [nombre]="vista() === 'tablero' ? 'lista' : 'panel'" /> {{ vista() === 'tablero' ? 'Ver lista' : 'Ver tablero' }}</button>
+    @if (auth.tieneRol('VENTAS')) {
+      <button class="btn btn-primario" type="button" (click)="nuevo()"><app-icono nombre="mas" /> Pedido directo</button>
+    }
+  </div>
+</div>
+
+@if (vista() === 'tablero') {
+  <div class="adm-tablero">
+    @for (e of columnasTablero; track e) {
+      <section class="adm-columna">
+        <h4>{{ texto(e) }} <span>{{ porEstado()[e].length }}</span></h4>
+        @for (p of porEstado()[e]; track p._id) {
+          <button type="button" class="adm-ficha" style="width:100%;text-align:left;cursor:pointer" (click)="abrir(p)">
+            <div class="fila entre"><strong>{{ p.numero }}</strong><span class="tenue">{{ fecha(p.fecha) }}</span></div>
+            <div>{{ p.cliente.nombre }}</div>
+            <div class="fila entre"><span class="tenue">{{ texto(p.canal) }}{{ p.creditoDias ? ' · crédito ' + p.creditoDias + ' d' : '' }}</span><strong>{{ dinero(p.totales.total) }}</strong></div>
+          </button>
+        } @empty {
+          <p class="tenue" style="font-size:0.82rem;padding:0.4rem">Sin pedidos</p>
+        }
+      </section>
+    }
+  </div>
+} @else {
+  <app-tabla [filas]="pedidos()" [columnas]="columnas" [clicable]="true" (seleccion)="abrir($event)" nombreArchivo="pedidos" />
+}
+
+@if (detalle(); as p) {
+  <app-modal [titulo]="'Pedido ' + p.numero" ancho="ancho" (cerrar)="detalle.set(null)">
+    <div class="fila entre" style="margin-bottom:0.75rem">
+      <div><strong>{{ p.cliente.nombre }}</strong> · {{ texto(p.canal) }} · <app-insignia [valor]="p.estado" /></div>
+      <span class="tenue">Vendedor: {{ p.vendedor.nombre }}</span>
+    </div>
+    <dl class="datos" style="margin-bottom:0.75rem">
+      <dt>Entrega</dt><dd>{{ p.entrega?.direccion ?? '—' }} {{ p.entrega?.fechaEstimada ? '· ' + fecha(p.entrega!.fechaEstimada) : '' }}</dd>
+      <dt>Crédito</dt><dd>{{ p.creditoDias ? p.creditoDias + ' días' : 'Contado' }}</dd>
+      @if (p.exportacion) { <dt>Exportación</dt><dd>{{ p.exportacion['naviera'] }} · {{ p.exportacion['puertoDestino'] }} · {{ p.exportacion['contenedor'] }}</dd> }
+      @if (p.viaje) { <dt>Viaje</dt><dd><a routerLink="/admin/logistica">{{ p.viaje.codigo }}</a> ({{ texto(p.viaje.estado) }})</dd> }
+      @if (p.factura) { <dt>Factura</dt><dd><a href="" (click)="$event.preventDefault(); verFactura(p)">{{ p.factura.numero }}</a> · {{ dinero(p.factura.total) }}</dd> }
+    </dl>
+    <div class="tabla-contenedor">
+      <table>
+        <thead><tr><th>Producto</th><th class="num">Cantidad</th><th>Lotes reservados (FEFO)</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>
+          @for (it of p.items; track $index) {
+            <tr>
+              <td>{{ it.descripcion }}</td>
+              <td class="num">{{ it.cantidad }} {{ it.unidad === 'KG' ? 'kg' : '' }}</td>
+              <td class="mono" style="font-size:0.78rem">@for (l of it.lotes; track l.loteId) { {{ l.codigo }} ({{ l.cantidad }}) }</td>
+              <td class="num">{{ dinero(it.subtotal) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="derecha" style="margin-top:0.5rem">Total <strong>{{ dinero(p.totales.total) }}</strong></p>
+
+    <div class="acciones" style="margin-top:1rem">
+      @if (p.estado === 'CONFIRMADO' && auth.tieneRol('BODEGA')) {
+        <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="accion(p, 'preparar')"><app-icono nombre="inventario" /> Empezar a preparar</button>
+      }
+      @if (p.estado === 'PREPARANDO' && auth.tieneRol('LOGISTICA', 'BODEGA')) {
+        <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="accion(p, 'despachar')"><app-icono nombre="logistica" /> Marcar despachado</button>
+        <a class="btn btn-borde" routerLink="/admin/logistica">Programar el viaje</a>
+      }
+      @if ((p.estado === 'DESPACHADO' || p.estado === 'PREPARANDO') && auth.tieneRol('VENTAS')) {
+        <button class="btn btn-exito" type="button" [disabled]="ocupado()" (click)="accion(p, 'facturar')"><app-icono nombre="factura" /> Facturar y enviar</button>
+      }
+      @if (['CONFIRMADO', 'PREPARANDO'].includes(p.estado) && auth.tieneRol('VENTAS')) {
+        <button class="btn btn-borde" type="button" [disabled]="ocupado()" (click)="accion(p, 'anular')">Anular pedido</button>
+      }
+    </div>
+  </app-modal>
+}
+
+@if (creando()) {
+  <app-modal titulo="Pedido directo (sin cotización)" ancho="completo" (cerrar)="creando.set(false)">
+    <div class="rejilla dos" style="margin-bottom:1rem">
+      <app-selector-cliente [(cliente)]="cliente" tipoPorDefecto="MAYORISTA" />
+      <div class="campo"><label for="cred">Días de crédito <span class="rn">RN-18</span></label><input id="cred" type="number" min="0" [ngModel]="creditoNuevo()" (ngModelChange)="creditoNuevo.set(+$event)" /></div>
+    </div>
+    <app-editor-lineas [productos]="productos()" [tipoCliente]="cliente()?.tipoCliente ?? 'MAYORISTA'" canal="MAYORISTA" [(lineas)]="lineas" />
+    <div class="acciones" style="justify-content:flex-end;margin-top:1rem">
+      <button class="btn btn-primario" type="button" [disabled]="ocupado() || !cliente() || !lineas().length" (click)="crear()">Crear pedido y reservar stock</button>
+    </div>
+  </app-modal>
+}

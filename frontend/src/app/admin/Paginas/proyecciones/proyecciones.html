@@ -1,0 +1,65 @@
+<!-- proyecciones.html → pronósticos y planes -->
+
+<div class="encabezado-pagina">
+  <div><h1>Proyecciones</h1><p class="tenue">Métodos simples y explicables: regresión lineal, estacionalidad, punto de reorden y recetas.</p></div>
+</div>
+
+@if (tendencias().length) {
+  <section class="tarjeta" style="margin-bottom:1rem">
+    <h3>Alertas de tendencia</h3>
+    @for (t of tendencias(); track $index) {
+      <div class="adm-alerta" style="padding-inline:0"><span class="punto"></span><span>{{ t.mensaje }}</span></div>
+    }
+  </section>
+}
+
+@if (ve.ventas) {
+  <div class="rejilla dos" style="margin-bottom:1rem">
+    <section class="tarjeta">
+      @if (graficoVentas(); as g) { <app-grafico [datos]="g" [titulo]="g.titulo" [alto]="300" /> }
+      @if (r2() !== null) { <p class="tenue" style="font-size:0.8rem">Ajuste de la regresión: R² = {{ numero(r2()!, 2) }} (1 = perfecto). La banda sombreada es el rango probable (95 %).</p> }
+    </section>
+    <section class="tarjeta">
+      <div class="fila entre" style="margin-bottom:0.4rem">
+        <strong style="font-size:0.9rem">Por producto</strong>
+        <select style="width:auto;max-width:60%" [ngModel]="productoElegido()" (ngModelChange)="productoElegido.set($event)" aria-label="Producto">
+          @for (p of productos(); track p.productoId) { <option [value]="p.productoId">{{ p.nombre }}</option> }
+        </select>
+      </div>
+      @if (graficoProducto(); as g) { <app-grafico [datos]="g" [alto]="280" /> }
+    </section>
+  </div>
+}
+
+@if (ve.reorden && reorden().length) {
+  <h2>Punto de reorden y días hasta agotarse</h2>
+  <p class="tenue" style="font-size:0.85rem">Punto de reorden = venta diaria × días de reposición + stock de seguridad. Si el disponible cae por debajo, se sugiere producir o comprar.</p>
+  <app-tabla [filas]="reorden()" [columnas]="columnasReorden" nombreArchivo="punto-de-reorden" />
+}
+
+@if (ve.cosecha && cosecha(); as c) {
+  <h2 style="margin-top:1.5rem">Cosecha de los próximos 12 meses</h2>
+  <div class="adm-resumen">
+    <div class="adm-dato"><span>Kg frescos proyectados</span><strong>{{ numero(c.totalFresco.reduce(sumar, 0), 0) }}</strong></div>
+    <div class="adm-dato"><span>Kg secos estimados</span><strong>{{ numero(totalSeco(), 0) }}</strong></div>
+    <div class="adm-dato"><span>Factor de secado (cacao)</span><strong>{{ numero(c.factorCacao * 100, 1) }} %</strong></div>
+  </div>
+  <section class="tarjeta">
+    @if (graficoCosecha(); as g) { <app-grafico [datos]="g" [titulo]="g.titulo" [alto]="320" /> }
+    <p class="tenue" style="font-size:0.8rem">▲ = temporada alta (aprox. abril a julio en la costa). Las parcelas en renovación no producen y las jóvenes producen menos.</p>
+  </section>
+}
+
+@if (ve.materiaPrima && materiaPrima(); as m) {
+  <h2 style="margin-top:1.5rem">Plan de materia prima ({{ m.meses }} meses)</h2>
+  <p class="tenue" style="font-size:0.85rem">Con el pronóstico de ventas y las recetas. Grano propio proyectado: {{ numero(m.granoPropioProyectadoKg, 0) }} kg.</p>
+  <app-tabla [filas]="m.materiales" [columnas]="columnasMateria" nombreArchivo="plan-materia-prima" />
+}
+
+@if (ve.flujo && graficoFlujo(); as g) {
+  <h2 style="margin-top:1.5rem">Flujo de caja proyectado</h2>
+  <section class="tarjeta">
+    <app-grafico [datos]="g" [titulo]="g.titulo" />
+    <p class="tenue" style="font-size:0.8rem">Cobros = facturas a crédito que vencen cada semana. Pagos = liquidaciones a productores y mantenimientos programados.</p>
+  </section>
+}

@@ -1,0 +1,114 @@
+<!-- poscosecha.html → ocupación y tablero de lotes de grano -->
+
+<div class="encabezado-pagina">
+  <div><h1>Poscosecha</h1><p class="tenue">Fermentación y secado de cada lote, sin pasar la capacidad de cada fermentador o tendal <span class="rn">RN-05</span>.</p></div>
+  @if (puedeOperar()) {
+    <button class="btn btn-borde" type="button" (click)="combinando.set(true)"><app-icono nombre="mas" /> Combinar lotes</button>
+  }
+</div>
+
+<!-- Ocupación de fermentadores, tendales y secadora -->
+<div class="adm-resumen" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
+  @for (o of ocupacion(); track o._id) {
+    <div class="adm-dato">
+      <span>{{ o.codigo }} · {{ texto(o.tipo) }} {{ o.estado === 'EN_MANTENIMIENTO' ? '(mantenimiento)' : '' }}</span>
+      <div class="adm-capacidad" [class.lleno]="porcentaje(o) >= 95" style="margin:0.4rem 0"><div [style.width.%]="porcentaje(o)"></div></div>
+      <small class="tenue">{{ numero(o.ocupadoKg, 0) }} / {{ numero(o.capacidadKg, 0) }} kg · {{ o.lotes.length }} lote(s)</small>
+    </div>
+  }
+</div>
+
+<div class="adm-tablero">
+  @for (e of columnasEstados; track e) {
+    <section class="adm-columna">
+      <h4>{{ texto(e) }} <span>{{ porEstado()[e].length }}</span></h4>
+      @for (l of porEstado()[e]; track l._id) {
+        <div class="adm-ficha">
+          <div class="fila entre"><a [routerLink]="['/admin/poscosecha', l._id]" class="mono"><strong>{{ l.codigo }}</strong></a><span class="tenue">{{ texto(l.origen) }}</span></div>
+          <div>{{ texto(l.variedad) }} · {{ numero(l.kgEntrada, 0) }} kg {{ texto(l.estadoEntrega).toLowerCase() }}</div>
+          <div class="tenue" style="font-size:0.78rem">{{ l.productor?.nombre ?? l.hacienda?.nombre }}</div>
+          @if (e === 'FERMENTANDO') {
+            <div class="tenue" style="font-size:0.78rem">{{ l.fermentacion?.codigo }} · día {{ diasDesde(l.fermentacion?.inicio) }} · {{ l.fermentacion?.volteos?.length ?? 0 }} volteos</div>
+          }
+          @if (e === 'SECANDO') {
+            <div class="tenue" style="font-size:0.78rem">{{ texto(l.secado?.metodo) }} {{ l.secado?.codigo }} · día {{ diasDesde(l.secado?.inicio) }}{{ l.secado?.mediciones?.length ? ' · ' + l.secado!.mediciones[l.secado!.mediciones.length - 1].humedad + ' %' : '' }}</div>
+          }
+          @if (puedeOperar()) {
+            <div class="acciones" style="margin-top:0.4rem">
+              @switch (e) {
+                @case ('RECIBIDO') { <button class="btn btn-primario btn-sm" type="button" (click)="abrir('fermentar', l)">Fermentar</button> }
+                @case ('FERMENTANDO') {
+                  <button class="btn btn-borde btn-sm" type="button" (click)="abrir('voltear', l)">Volteo</button>
+                  <button class="btn btn-primario btn-sm" type="button" (click)="abrir('secar', l)">A secado</button>
+                }
+                @case ('SECANDO') {
+                  <button class="btn btn-borde btn-sm" type="button" (click)="abrir('humedad', l)">Humedad</button>
+                  <button class="btn btn-primario btn-sm" type="button" (click)="abrir('terminar', l)">Terminar</button>
+                }
+                @case ('SECO') { <a class="btn btn-borde btn-sm" routerLink="/admin/calidad">Evaluar en Calidad</a> }
+              }
+            </div>
+          }
+        </div>
+      } @empty {
+        <p class="tenue" style="font-size:0.82rem;padding:0.4rem">Sin lotes</p>
+      }
+    </section>
+  }
+</div>
+
+<h2 style="margin-top:1.5rem">Lotes almacenados y rechazados</h2>
+<app-tabla [filas]="almacenados()" [columnas]="columnasAlmacen" nombreArchivo="lotes-grano" />
+
+@if (accion(); as a) {
+  <app-modal [titulo]="a.lote.codigo + ' · ' + titulosAccion[a.tipo]" (cerrar)="accion.set(null)">
+    <p class="tenue">{{ texto(a.lote.variedad) }} · {{ numero(a.lote.kgEntrada, 0) }} kg {{ texto(a.lote.estadoEntrega).toLowerCase() }}</p>
+    @if (a.tipo === 'secar') {
+      <div class="campo">
+        <label for="met">Método</label>
+        <select id="met" [ngModel]="metodo()" (ngModelChange)="metodo.set($event); activoElegido.set('')"><option value="TENDAL">Tendal (al sol)</option><option value="SECADORA">Secadora a gas</option></select>
+      </div>
+    }
+    @if (a.tipo === 'fermentar' || a.tipo === 'secar') {
+      <div class="campo">
+        <label for="dest">{{ a.tipo === 'fermentar' ? 'Fermentador' : 'Lugar de secado' }} con espacio</label>
+        <select id="dest" [ngModel]="activoElegido()" (ngModelChange)="activoElegido.set($event)">
+          <option value="">— Elegir —</option>
+          @for (d of destinos(); track d._id) { <option [value]="d._id">{{ d.codigo }} · {{ d.nombre }} (libre {{ numero(d.libreKg, 0) }} kg)</option> }
+        </select>
+        @if (!destinos().length) { <span class="error-campo">No hay ninguno con espacio para {{ numero(a.lote.kgEntrada, 0) }} kg.</span> }
+      </div>
+    }
+    @if (a.tipo === 'voltear') {
+      <div class="campo"><label for="tmp">Temperatura de la masa (°C, normal 40–50)</label><input id="tmp" type="number" min="20" max="60" step="0.1" [ngModel]="valor()" (ngModelChange)="valor.set(+$event)" /></div>
+    }
+    @if (a.tipo === 'humedad') {
+      <div class="campo"><label for="hm">Humedad medida (%)</label><input id="hm" type="number" min="0" max="80" step="0.1" [ngModel]="valor()" (ngModelChange)="valor.set(+$event)" /></div>
+    }
+    @if (a.tipo === 'terminar') {
+      <div class="rejilla-form">
+        <div class="campo"><label for="ks">Kg secos obtenidos</label><input id="ks" type="number" min="0.1" step="0.1" [ngModel]="valor()" (ngModelChange)="valor.set(+$event)" /></div>
+        <div class="campo"><label for="hf">Humedad final (%)</label><input id="hf" type="number" min="0" max="80" step="0.1" [ngModel]="humedadFinal()" (ngModelChange)="humedadFinal.set(+$event)" /></div>
+      </div>
+      <p class="tenue" style="font-size:0.82rem">El cacao debe quedar en 7 % o menos (café 12 %). Si está más húmedo, el sistema no deja terminar.</p>
+    }
+    <button class="btn btn-primario" type="button" [disabled]="ocupado() || ((a.tipo === 'fermentar' || a.tipo === 'secar') && !activoElegido()) || ((a.tipo === 'humedad' || a.tipo === 'terminar') && !valor()) || (a.tipo === 'terminar' && humedadFinal() === null)" (click)="confirmar()">Confirmar</button>
+  </app-modal>
+}
+
+@if (combinando()) {
+  <app-modal titulo="Combinar lotes" ancho="ancho" (cerrar)="combinando.set(false)">
+    <p class="tenue">Junta varios lotes secos de la misma variedad en uno solo (por ejemplo, para completar un contenedor). El lote nuevo guarda la lista de lotes de origen para la trazabilidad.</p>
+    <div class="rejilla" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.4rem">
+      @for (l of almacenados(); track l._id) {
+        @if (l.estado === 'ALMACENADO') {
+          <label class="fila tarjeta" style="padding:0.45rem 0.6rem">
+            <input type="checkbox" [checked]="paraCombinar().includes(l._id)" (change)="alternarCombinar(l._id)" />
+            <span style="font-size:0.85rem"><span class="mono">{{ l.codigo }}</span><br />{{ texto(l.variedad) }} · {{ numero(l.kgSeco, 0) }} kg · {{ texto(l.calidad?.grado) }}</span>
+          </label>
+        }
+      }
+    </div>
+    <button class="btn btn-primario" type="button" style="margin-top:0.75rem" [disabled]="ocupado() || paraCombinar().length < 2" (click)="combinar()">Combinar {{ paraCombinar().length }} lotes</button>
+  </app-modal>
+}

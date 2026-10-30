@@ -1,0 +1,69 @@
+<!-- formulario-campo.html → cosecha o labor con cuadrilla, insumos y agroquímico -->
+
+<div class="rejilla-form">
+  <div class="campo">
+    <label for="fc-parcela">Parcela *</label>
+    <select id="fc-parcela" [ngModel]="parcela()" (ngModelChange)="parcela.set($event); cuadrilla.set({})">
+      <option value="">— Elegir —</option>
+      @for (p of parcelas(); track p._id) { <option [value]="p._id">{{ p.codigo }} · {{ texto(p.cultivo) }} {{ texto(p.variedad) }} · {{ p.hectareas }} ha</option> }
+    </select>
+  </div>
+  <div class="campo"><label for="fc-fecha">Fecha</label><input id="fc-fecha" type="date" [ngModel]="fecha()" (ngModelChange)="fecha.set($event)" /></div>
+
+  @if (modo() === 'COSECHA') {
+    <div class="campo"><label for="fc-kg">Kg cosechados (en baba o cereza) *</label><input id="fc-kg" type="number" min="0.1" step="0.1" [ngModel]="kg()" (ngModelChange)="kg.set(+$event)" /></div>
+    <div class="campo"><label for="fc-maz">Mazorcas (cacao)</label><input id="fc-maz" type="number" min="0" [ngModel]="mazorcas()" (ngModelChange)="mazorcas.set(+$event)" /></div>
+  } @else {
+    <div class="campo">
+      <label for="fc-tipo">Labor</label>
+      <select id="fc-tipo" [ngModel]="tipo()" (ngModelChange)="tipo.set($event)" [disabled]="conAgroquimico()">
+        @for (t of tiposLabor; track t) { <option [value]="t">{{ texto(t) }}</option> }
+      </select>
+    </div>
+    <div class="campo" style="justify-content:flex-end">
+      <label class="fila" style="font-weight:600"><input type="checkbox" [checked]="conAgroquimico()" (change)="conAgroquimico.set(!conAgroquimico())" /> Se aplicó un agroquímico</label>
+    </div>
+    @if (conAgroquimico()) {
+      <div class="campo"><label for="fc-agro">Producto aplicado</label><input id="fc-agro" placeholder="Ej: Fungicida cúprico" [ngModel]="agroProducto()" (ngModelChange)="agroProducto.set($event)" /></div>
+      <div class="campo"><label for="fc-dosis">Dosis</label><input id="fc-dosis" placeholder="Ej: 3 g/L" [ngModel]="agroDosis()" (ngModelChange)="agroDosis.set($event)" /></div>
+      <div class="campo"><label for="fc-car">Días de carencia <span class="rn">RN-01</span></label><input id="fc-car" type="number" min="0" [ngModel]="agroCarencia()" (ngModelChange)="agroCarencia.set(+$event)" /></div>
+      <div class="campo ancho-completo"><div class="aviso oro" style="margin:0">Durante {{ agroCarencia() }} días el sistema no permitirá registrar cosechas en esta parcela.</div></div>
+    }
+  }
+</div>
+
+<!-- Cuadrilla -->
+<h4 style="margin:0.75rem 0 0.4rem">Cuadrilla ({{ totalJornales() }} jornales)</h4>
+@if (!parcela()) {
+  <p class="tenue" style="font-size:0.85rem">Elige la parcela para ver los trabajadores de esa hacienda.</p>
+} @else {
+  <div class="rejilla" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:0.4rem">
+    @for (t of cuadrillaPosible(); track t._id) {
+      <label class="fila tarjeta" style="padding:0.4rem 0.6rem;flex-wrap:nowrap">
+        <input type="checkbox" [checked]="(cuadrilla()[t._id] ?? 0) > 0" (change)="marcar(t._id, (cuadrilla()[t._id] ?? 0) > 0 ? 0 : 1)" />
+        <span style="flex:1;font-size:0.85rem">{{ t.nombre }}<br /><span class="tenue">{{ texto(t.cargo) }}</span></span>
+        <input type="number" min="0" step="0.5" style="width:64px;padding:0.25rem" [ngModel]="cuadrilla()[t._id] ?? 0" (ngModelChange)="marcar(t._id, +$event)" [attr.aria-label]="'Jornales de ' + t.nombre" />
+      </label>
+    } @empty {
+      <p class="tenue">No hay trabajadores registrados en esta hacienda.</p>
+    }
+  </div>
+}
+
+<!-- Insumos (solo labores) -->
+@if (modo() === 'LABOR') {
+  <h4 style="margin:0.9rem 0 0.4rem">Insumos usados (salen de la bodega de insumos de campo)</h4>
+  @for (i of insumos(); track $index; let k = $index) {
+    <div class="fila" style="margin-bottom:0.35rem;flex-wrap:nowrap">
+      <select style="flex:1" [ngModel]="i.producto" (ngModelChange)="cambiarInsumo(k, { producto: $event })" aria-label="Insumo">
+        @for (p of insumosDisponibles(); track p._id) { <option [value]="p._id">{{ p.nombre }} (stock {{ p.stock?.disponible ?? 0 }} {{ p.unidad.toLowerCase() }})</option> }
+      </select>
+      <input type="number" min="0.001" step="any" style="width:100px" [ngModel]="i.cantidad" (ngModelChange)="cambiarInsumo(k, { cantidad: +$event })" aria-label="Cantidad" />
+      <button class="btn-icono" type="button" (click)="quitarInsumo(k)" aria-label="Quitar"><app-icono nombre="cerrar" [tam]="16" /></button>
+    </div>
+  }
+  <button class="btn btn-borde btn-sm" type="button" (click)="agregarInsumo()"><app-icono nombre="mas" [tam]="14" /> Agregar insumo</button>
+}
+
+<div class="campo" style="margin-top:0.9rem"><label for="fc-obs">Observaciones</label><textarea id="fc-obs" rows="2" [ngModel]="observaciones()" (ngModelChange)="observaciones.set($event)"></textarea></div>
+<button class="btn btn-primario" type="button" [disabled]="ocupado() || !parcela() || (modo() === 'COSECHA' && !kg())" (click)="enviar()">{{ ocupado() ? 'Guardando…' : modo() === 'COSECHA' ? 'Registrar cosecha' : 'Registrar labor' }}</button>

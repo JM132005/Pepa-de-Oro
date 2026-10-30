@@ -1,0 +1,47 @@
+<!-- clientes.html → lista, formulario y estado de cuenta -->
+
+<div class="encabezado-pagina">
+  <div><h1>Clientes</h1><p class="tenue">Consumidores, mayoristas, distribuidores y exportadores.</p></div>
+  <div class="acciones">
+    <select style="width:auto" [ngModel]="tipo()" (ngModelChange)="tipo.set($event); cargar()" aria-label="Tipo de cliente">
+      <option value="">Todos los tipos</option>
+      @for (t of tipos; track t) { <option [value]="t">{{ texto(t) }}</option> }
+    </select>
+    @if (auth.tieneRol('VENTAS')) {
+      <button class="btn btn-primario" type="button" (click)="nuevo()"><app-icono nombre="mas" /> Nuevo cliente</button>
+    }
+  </div>
+</div>
+
+<app-tabla [filas]="clientes()" [columnas]="columnas" [clicable]="true" (seleccion)="verCuenta($event)" [acciones]="botones" nombreArchivo="clientes" />
+<ng-template #botones let-c>
+  @if (auth.tieneRol('VENTAS')) {
+    <button class="btn-icono" type="button" title="Editar" (click)="editando.set(c)"><app-icono nombre="editar" /></button>
+  }
+  <button class="btn btn-borde btn-sm" type="button" (click)="verCuenta(c)">Estado de cuenta</button>
+</ng-template>
+
+@if (editando(); as c) {
+  <app-modal [titulo]="c._id ? 'Editar ' + c.nombre : 'Nuevo cliente'" ancho="ancho" (cerrar)="editando.set(null)">
+    <app-formulario-dinamico [campos]="campos" [valores]="c" [ocupado]="ocupado()" (guardar)="guardar($event)" />
+  </app-modal>
+}
+
+@if (cuenta(); as e) {
+  <app-modal [titulo]="'Estado de cuenta · ' + e.cliente.nombre" ancho="ancho" (cerrar)="cuenta.set(null)">
+    <div class="adm-resumen">
+      <div class="adm-dato"><span>Crédito</span><strong>{{ e.credito.creditoDias ? e.credito.creditoDias + ' días' : 'Contado' }}</strong></div>
+      <div class="adm-dato"><span>Cupo</span><strong>{{ dinero(e.credito.cupo) }}</strong></div>
+      <div class="adm-dato" [class.peligro]="e.credito.saldoPendiente > 0"><span>Saldo pendiente</span><strong>{{ dinero(e.credito.saldoPendiente) }}</strong></div>
+      <div class="adm-dato" [class.peligro]="e.credito.facturasVencidas > 0"><span>Facturas vencidas</span><strong>{{ e.credito.facturasVencidas }}</strong></div>
+      <div class="adm-dato exito"><span>Cupo disponible</span><strong>{{ dinero(e.credito.disponible) }}</strong></div>
+    </div>
+    @if (e.credito.facturasVencidas > 0) {
+      <div class="aviso peligro"><span class="rn">RN-18</span> Con facturas vencidas, el cliente no puede comprar a crédito hasta ponerse al día.</div>
+    }
+    <div class="acciones" style="margin-bottom:0.75rem">
+      <button class="btn btn-borde btn-sm" type="button" (click)="pdfCuenta(e.cliente)"><app-icono nombre="pdf" /> Descargar PDF</button>
+    </div>
+    <app-tabla [filas]="e.facturas" [columnas]="columnasCuenta" [buscador]="false" [porPagina]="10" />
+  </app-modal>
+}

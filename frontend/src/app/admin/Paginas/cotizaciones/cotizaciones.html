@@ -1,0 +1,117 @@
+<!-- cotizaciones.html → lista, nueva cotización y detalle -->
+
+<div class="encabezado-pagina">
+  <div>
+    <h1>Cotizaciones</h1>
+    <p class="tenue">Ventas por mayor y exportación. Al aceptar, se crea el pedido y se reserva el stock.</p>
+  </div>
+  <button class="btn btn-primario" type="button" (click)="nueva()"><app-icono nombre="mas" /> Nueva cotización</button>
+</div>
+
+<div class="web-filtros">
+  @for (e of estados; track e) {
+    <button type="button" class="web-chip" [class.activo]="estado() === e" (click)="filtrar(e)">{{ e ? texto(e) : 'Todas' }}</button>
+  }
+</div>
+
+<app-tabla [filas]="lista()" [columnas]="columnas" [clicable]="true" (seleccion)="abrir($event)" [acciones]="botones" nombreArchivo="cotizaciones" />
+<ng-template #botones let-c>
+  <button class="btn-icono" type="button" title="Ver PDF" (click)="pdf(c)"><app-icono nombre="pdf" /></button>
+  @if (c.estado === 'BORRADOR') {
+    <button class="btn btn-borde btn-sm" type="button" (click)="enviar(c)"><app-icono nombre="enviar" [tam]="14" /> Enviar</button>
+  }
+</ng-template>
+
+<!-- Nueva cotización -->
+@if (creando()) {
+  <app-modal titulo="Nueva cotización" ancho="completo" (cerrar)="creando.set(false)">
+    <div class="rejilla dos" style="margin-bottom:1rem">
+      <div>
+        <label class="tenue" style="font-size:0.82rem;font-weight:600">Cliente</label>
+        <app-selector-cliente [(cliente)]="cliente" tipoPorDefecto="MAYORISTA" />
+      </div>
+      <div class="rejilla-form">
+        <div class="campo">
+          <label for="canal">Canal</label>
+          <select id="canal" [ngModel]="canal()" (ngModelChange)="canal.set($event)">
+            <option value="MAYORISTA">Mayorista (nacional)</option>
+            <option value="EXPORTACION">Exportación (IVA 0 %)</option>
+          </select>
+        </div>
+        <div class="campo"><label for="validez">Días de validez</label><input id="validez" type="number" min="1" [ngModel]="diasValidez()" (ngModelChange)="diasValidez.set(+$event)" /></div>
+        <div class="campo ancho-completo"><label for="cond">Condiciones</label><input id="cond" placeholder="Ej: Crédito 30 días · entrega en bodega del cliente" [ngModel]="condiciones()" (ngModelChange)="condiciones.set($event)" /></div>
+      </div>
+    </div>
+    <app-editor-lineas [productos]="productos()" [tipoCliente]="tipoCliente()" [canal]="canal()" [permitirServicios]="true" [(lineas)]="lineas" />
+    <div class="campo" style="margin-top:1rem"><label for="obs">Observaciones (salen en el PDF)</label><textarea id="obs" rows="2" [ngModel]="observaciones()" (ngModelChange)="observaciones.set($event)"></textarea></div>
+    <div class="acciones" style="justify-content:flex-end">
+      <button class="btn btn-borde" type="button" [disabled]="ocupado() || !cliente() || !lineas().length" (click)="guardar(false)">Guardar borrador</button>
+      <button class="btn btn-primario" type="button" [disabled]="ocupado() || !cliente() || !lineas().length" (click)="guardar(true)"><app-icono nombre="enviar" /> Guardar y enviar por correo</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Detalle -->
+@if (detalle(); as c) {
+  <app-modal [titulo]="'Cotización ' + c.numero" ancho="ancho" (cerrar)="detalle.set(null)">
+    <div class="fila entre" style="margin-bottom:0.75rem">
+      <div><strong>{{ c.cliente.nombre }}</strong> · {{ texto(c.canal) }} · <app-insignia [valor]="c.estado" /></div>
+      <div class="acciones">
+        <button class="btn btn-borde btn-sm" type="button" (click)="pdf(c)"><app-icono nombre="pdf" /> PDF</button>
+        @if (c.estado === 'BORRADOR' || c.estado === 'ENVIADA') {
+          <button class="btn btn-borde btn-sm" type="button" [disabled]="ocupado()" (click)="enviar(c)"><app-icono nombre="correo" /> {{ c.estado === 'ENVIADA' ? 'Reenviar' : 'Enviar' }}</button>
+        }
+      </div>
+    </div>
+    <p class="tenue" style="font-size:0.85rem">Emitida {{ fecha(c.fecha) }} · válida hasta {{ fecha(c.vence) }} · vendedor {{ c.vendedor.nombre }}{{ c.condiciones ? ' · ' + c.condiciones : '' }}</p>
+    <div class="tabla-contenedor">
+      <table>
+        <thead><tr><th>Descripción</th><th class="num">Cant.</th><th class="num">P. unit.</th><th class="num">Desc.</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>
+          @for (it of c.items; track $index) {
+            <tr><td>{{ it.descripcion }}<br /><span class="tenue" style="font-size:0.75rem">{{ it.reglaPrecio }}</span></td><td class="num">{{ it.cantidad }}</td><td class="num">{{ dinero(it.precioUnitario) }}</td><td class="num">{{ dinero(it.descuento) }}</td><td class="num">{{ dinero(it.subtotal) }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="adm-totales" style="max-width:300px;margin:0.75rem 0 0 auto">
+      <span class="tenue">Subtotal</span><span class="derecha">{{ dinero(c.totales.subtotalSinImpuestos) }}</span>
+      <span class="tenue">IVA</span><span class="derecha">{{ dinero(c.totales.iva) }}</span>
+      <strong>Total</strong><span class="derecha total">{{ dinero(c.totales.total) }}</span>
+    </div>
+    @if (c.envios.length) {
+      <p class="tenue" style="font-size:0.82rem">Envíos: @for (e of c.envios; track $index) { {{ fechaHora(e.fecha) }} {{ e.ok ? '✓' : '✗' }} {{ e.destinatario }}; }</p>
+    }
+    @if (c.pedido) {
+      <div class="aviso exito">Convertida en el pedido {{ c.pedido.numero }} ({{ texto(c.pedido.estado) }}).</div>
+    }
+
+    @if (c.estado === 'ENVIADA' || c.estado === 'BORRADOR') {
+      <div class="separador"></div>
+      @if (!aceptando()) {
+        <div class="acciones">
+          <button class="btn btn-exito" type="button" (click)="aceptando.set(true)"><app-icono nombre="check" /> El cliente aceptó</button>
+          <input style="flex:1;min-width:200px" placeholder="Motivo del rechazo" [ngModel]="motivoRechazo()" (ngModelChange)="motivoRechazo.set($event)" />
+          <button class="btn btn-borde" type="button" [disabled]="!motivoRechazo().trim() || ocupado()" (click)="rechazar()">Rechazada</button>
+        </div>
+      } @else {
+        <h3>Convertir en pedido</h3>
+        <div class="rejilla-form">
+          <div class="campo"><label for="cred">Días de crédito <span class="rn">RN-18</span></label><input id="cred" type="number" min="0" [ngModel]="creditoDias()" (ngModelChange)="creditoDias.set(+$event)" /></div>
+          <div class="campo"><label for="fent">Fecha estimada de entrega</label><input id="fent" type="date" [ngModel]="fechaEntrega()" (ngModelChange)="fechaEntrega.set($event)" /></div>
+          <div class="campo ancho-completo"><label for="dir">Dirección de entrega</label><input id="dir" [ngModel]="direccion()" (ngModelChange)="direccion.set($event)" /></div>
+          @if (c.canal === 'EXPORTACION') {
+            <div class="campo"><label for="nav">Naviera</label><input id="nav" [ngModel]="naviera()" (ngModelChange)="naviera.set($event)" /></div>
+            <div class="campo"><label for="pue">Puerto de destino</label><input id="pue" [ngModel]="puerto()" (ngModelChange)="puerto.set($event)" /></div>
+            <div class="campo"><label for="con">Contenedor</label><input id="con" [ngModel]="contenedor()" (ngModelChange)="contenedor.set($event)" /></div>
+          }
+        </div>
+        <div class="acciones">
+          <button class="btn btn-primario" type="button" [disabled]="ocupado()" (click)="aceptar()">Crear pedido y reservar stock</button>
+          <button class="btn btn-borde" type="button" (click)="aceptando.set(false)">Volver</button>
+        </div>
+        <p class="tenue" style="font-size:0.8rem;margin-top:0.5rem"><span class="rn">RN-12</span> Si no hay stock suficiente para alguna línea, el sistema no crea el pedido. <span class="rn">RN-22</span> Una cotización vencida tampoco se convierte.</p>
+      }
+    }
+  </app-modal>
+}

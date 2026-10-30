@@ -1,0 +1,96 @@
+<!-- lote-grano.html → hoja de vida de un lote de grano -->
+
+<a routerLink="/admin/poscosecha" class="tenue" style="font-size:0.85rem">← Volver a Poscosecha</a>
+
+@if (lote(); as l) {
+  <div class="encabezado-pagina" style="margin-top:0.5rem">
+    <div>
+      <h1 class="mono" style="font-family:var(--fuente-titulos)">Lote {{ l.codigo }}</h1>
+      <p class="tenue">{{ texto(l.cultivo) }} {{ texto(l.variedad) }} · {{ texto(l.origen) }} · recibido {{ fecha(l.fechaRecepcion) }}</p>
+    </div>
+    <div class="acciones">
+      <app-insignia [valor]="l.estado" />
+      @if (l.calidad) { <app-insignia [valor]="l.calidad.grado" /> }
+      @if (l.calidad && l.estado !== 'RECHAZADO') { <button class="btn btn-primario btn-sm" type="button" (click)="certificado(l)"><app-icono nombre="pdf" /> Certificado de calidad</button> }
+      <a class="btn btn-borde btn-sm" [routerLink]="'/rastreo'" [queryParams]="{ codigo: l.codigo }" target="_blank">Ver en la web (rastreo)</a>
+    </div>
+  </div>
+
+  <div class="adm-resumen">
+    <div class="adm-dato"><span>Kg de entrada ({{ texto(l.estadoEntrega).toLowerCase() }})</span><strong>{{ numero(l.kgEntrada, 0) }}</strong></div>
+    <div class="adm-dato"><span>Kg secos</span><strong>{{ l.kgSeco ? numero(l.kgSeco, 0) : '—' }}</strong></div>
+    <div class="adm-dato"><span>Merma</span><strong>{{ l.mermaPct ? numero(l.mermaPct, 1) + ' %' : '—' }}</strong></div>
+    <div class="adm-dato"><span>Humedad de entrada</span><strong>{{ numero(l.humedadEntrada, 1) }} %</strong></div>
+    <div class="adm-dato"><span>Costo total</span><strong>{{ dinero(l.costoTotal) }}</strong></div>
+    <div class="adm-dato"><span>Costo por kg seco</span><strong>{{ l.costoKgSeco ? dinero(l.costoKgSeco) : '—' }}</strong></div>
+  </div>
+
+  <div class="rejilla dos" style="align-items:start">
+    <div>
+      <section class="tarjeta" style="margin-bottom:1rem">
+        <h3>Origen</h3>
+        @if (l.productor) { <p>Productor: <strong>{{ l.productor.nombre }}</strong> ({{ l.productor.canton }})</p> }
+        @if (l.hacienda) { <p>Hacienda: <strong>{{ l.hacienda.nombre }}</strong> · parcela {{ l.parcela?.codigo }}</p> }
+        @if (l.lotesOrigen.length) { <p>Combinado de: <span class="mono">{{ l.lotesOrigen.join(', ') }}</span></p> }
+      </section>
+
+      @if (l.fermentacion) {
+        <section class="tarjeta" style="margin-bottom:1rem">
+          <h3>Fermentación · {{ l.fermentacion.codigo }}</h3>
+          <p class="tenue">Del {{ fecha(l.fermentacion.inicio) }} {{ l.fermentacion.fin ? 'al ' + fecha(l.fermentacion.fin) : '(en curso)' }}</p>
+          <ul>@for (v of l.fermentacion.volteos; track $index) { <li>{{ fechaHora(v.fecha) }} · volteo{{ v.temperatura ? ' a ' + v.temperatura + ' °C' : '' }} — {{ v.usuario }}</li> }</ul>
+        </section>
+      }
+      @if (l.secado) {
+        <section class="tarjeta" style="margin-bottom:1rem">
+          <h3>Secado · {{ texto(l.secado.metodo) }} {{ l.secado.codigo }}</h3>
+          <p class="tenue">Del {{ fecha(l.secado.inicio) }} {{ l.secado.fin ? 'al ' + fecha(l.secado.fin) : '(en curso)' }}</p>
+          @if (graficoHumedad(); as g) { <app-grafico [datos]="g" [alto]="200" /> }
+        </section>
+      }
+    </div>
+
+    <div>
+      @if (l.calidad; as c) {
+        <section class="tarjeta" style="margin-bottom:1rem">
+          <h3>Calidad · {{ texto(c.grado) }}</h3>
+          <p class="tenue">{{ fechaHora(c.fecha) }} · {{ c.usuario }} · destino {{ texto(c.destino) }}</p>
+          <dl class="datos">
+            @if (c.bienFermentados !== undefined) {
+              <dt>Bien fermentados</dt><dd>{{ c.bienFermentados }} %</dd>
+              <dt>Violetas</dt><dd>{{ c.violetas }} %</dd>
+              <dt>Pizarrosos</dt><dd>{{ c.pizarrosos }} %</dd>
+              <dt>Mohosos</dt><dd>{{ c.mohosos }} %</dd>
+              <dt>Insectados / germinados</dt><dd>{{ c.insectados }} % / {{ c.germinados }} %</dd>
+              <dt>Peso de 100 granos</dt><dd>{{ c.peso100Granos }} g</dd>
+            }
+            @if (c.defectos300g !== undefined) {
+              <dt>Defectos en 300 g</dt><dd>{{ c.defectos300g }}</dd>
+              <dt>Puntaje de taza</dt><dd>{{ c.puntajeTaza }}</dd>
+            }
+            <dt>Humedad</dt><dd>{{ c.humedad }} %</dd>
+            @if (c.cata) { <dt>Cata</dt><dd>{{ c.cata.notas.join(', ') }} · {{ c.cata.puntaje }}/10</dd> }
+          </dl>
+          @if (c.motivos.length) { <p class="tenue" style="font-size:0.85rem;margin-top:0.5rem">Motivos: {{ c.motivos.join('; ') }}</p> }
+        </section>
+      }
+      @if (l.noConformidad; as nc) {
+        <section class="tarjeta" style="margin-bottom:1rem;border-color:var(--peligro)">
+          <h3>No conformidad {{ nc.cerrada ? '(cerrada)' : '(abierta)' }}</h3>
+          <p>{{ nc.causa }}</p>
+          <p class="tenue">{{ fecha(nc.fecha) }}{{ nc.destino ? ' · destino: ' + texto(nc.destino) : '' }}</p>
+        </section>
+      }
+      <section class="tarjeta">
+        <h3>Historial</h3>
+        <ol class="web-linea-tiempo">
+          @for (h of l.historial; track $index) {
+            <li><time>{{ fechaHora(h.fecha) }}</time><strong style="display:block">{{ h.evento }}</strong><span class="tenue" style="font-size:0.85rem">{{ h.detalle }} — {{ h.usuario }}</span></li>
+          }
+        </ol>
+      </section>
+    </div>
+  </div>
+} @else {
+  <app-cargando texto="Cargando el lote" />
+}
