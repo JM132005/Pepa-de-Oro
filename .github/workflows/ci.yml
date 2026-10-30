@@ -150,7 +150,7 @@ jobs:
   deploy:
     name: Deploy (GitHub Pages)
     # if: solo en un push a main (no en Pull Requests ni en develop).
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: [backend, frontend, semilla]
     runs-on: ubuntu-latest
     # permissions: Pages necesita permiso para publicar (pages) y para firmar el despliegue (id-token).
