@@ -2,6 +2,62 @@
 
 > Pasos para dejar el repositorio listo para la presentación. Lo que dice 🧑‍💻 se hace una sola vez.
 
+## 0. Qué flujo de ramas usamos y por qué
+
+Hay dos formas muy conocidas de organizar las ramas de Git. Elegimos una mezcla adaptada a un equipo de 2.
+
+### Git Flow
+Creado por Vincent Driessen (2010). Usa ramas de larga vida con un papel fijo:
+
+| Rama | Para qué |
+|---|---|
+| `main` | Solo versiones publicadas (cada una con su tag `v1.0.0`) |
+| `develop` | Donde se integra el trabajo del equipo |
+| `feature/*` | Una por funcionalidad; nace de `develop` y vuelve a `develop` |
+| `release/*` | Preparar una versión (pruebas finales) antes de pasar a `main` |
+| `hotfix/*` | Arreglo urgente que sale de `main` y vuelve a `main` y `develop` |
+
+```
+main     ●───────────────────────●  v1.0.0
+          \                     /
+develop    ●──●───────●─────────●
+               \     / \     /
+feature/x       ●───●   ●───●  feature/y
+```
+
+### Trunk Based Development
+Todos integran en **una sola rama** (`main`, "el tronco") varias veces al día, con ramas que duran horas, no
+semanas. Lo que no está terminado se esconde con *feature flags*. Exige un CI muy confiable porque cada
+merge puede ir a producción.
+
+```
+main  ●──●──●──●──●──●──●   (cada punto = un PR pequeño fusionado el mismo día)
+       \/  \/  \/
+```
+
+### Comparación
+
+| Criterio | Git Flow | Trunk Based |
+|---|---|---|
+| Ramas largas | `main`, `develop` (+ `release`, `hotfix`) | Solo `main` |
+| Duración de una rama de trabajo | Días o semanas | Horas (máximo 1–2 días) |
+| Conflictos al unir | Más probables (ramas largas) | Pocos (cambios pequeños y frecuentes) |
+| Necesita CI | Recomendado | Obligatorio y muy rápido |
+| Versiones | Claras: cada merge a `main` es una versión | Continuas: se publica todo el tiempo |
+| Ideal para | Entregas por versión, equipos que aprenden, software con fechas | Equipos con experiencia, despliegue continuo (startups, web) |
+
+### Lo que elegimos para Pepa de Oro
+**Git Flow simplificado:** `main` + `develop` + ramas cortas con el número de la spec (`001-backend`,
+`002-frontend`, `003-ci`…), sin `release/*` ni `hotfix/*`.
+
+- **Por qué `develop`:** el parcial tiene una entrega fija; `main` queda limpio con la versión que se
+  presenta (tag `v1.0.0`) y en `develop` se integra y prueba sin riesgo.
+- **Por qué ramas cortas y numeradas (idea de Trunk Based):** cada rama hace una sola cosa, dura poco y
+  se une por Pull Request con revisión y CI en verde; así hay pocos conflictos.
+- **Sin `release` ni `hotfix`:** con 2 personas y una entrega, serían pasos de más.
+- **Para la empresa del caso:** empezar igual que nosotros y, cuando el CI y las pruebas sean confiables,
+  pasar a Trunk Based con despliegue continuo. En una startup se puede empezar directamente con Trunk Based.
+
 ## 1. Subir el proyecto 🧑‍💻
 
 ```powershell
