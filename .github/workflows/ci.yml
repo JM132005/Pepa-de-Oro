@@ -3,10 +3,11 @@
 # ¿Qué es? Un "robot" de GitHub que, cada vez que alguien sube código (push) o abre un Pull Request,
 # descarga el repositorio en una máquina limpia y comprueba que TODO sigue funcionando:
 #
-#   1. backend   → instala, revisa el estilo (lint), corre las 124 pruebas de reglas (RN-01…RN-26) y compila.
+#   1. backend   → instala, revisa el estilo (lint), corre las 126 pruebas de reglas (RN-01…RN-26) y compila.
 #   2. frontend  → instala y compila Angular en modo producción (si una plantilla tiene un error, aquí falla).
 #   3. semilla   → levanta un MongoDB de verdad y simula 1 mes de operación usando los servicios reales:
 #                  es una prueba de integración "de punta a punta" de los 19 módulos.
+#   4. deploy    → solo cuando algo llega a main: publica la web en GitHub Pages.
 #
 # Si un paso falla, el PR queda marcado con ❌ y no se debería fusionar (regla de protección de la rama main).
 # Dónde se ve: pestaña "Actions" del repositorio en GitHub.
@@ -138,3 +139,54 @@ jobs:
           VENTAS=$(docker run --rm --network host mongo:8 mongosh "$MONGO_URI" --quiet --eval 'db.facturas.countDocuments()')
           echo "Facturas generadas: $VENTAS"
           test "$VENTAS" -gt 0
+
+  # ─────────────────────────── 4. DEPLOY (solo en main) ───────────────────────────
+  # Publica la web compilada en GitHub Pages: https://USUARIO.github.io/Pepa-de-Oro/
+  # Solo corre cuando algo llega a main (la entrega) y si los otros 3 trabajos pasaron.
+  # OJO: GitHub Pages solo sirve archivos estáticos (la web). Los datos vienen de la API NestJS,
+  # que no se publica aquí; para ver datos en la demo se usa el backend local (npm run start:dev).
+  deploy:
+    name: Deploy (GitHub Pages)
+    # if: solo en un push a main (no en Pull Requests ni en develop).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend, semilla]
+    runs-on: ubuntu-latest
+    # permissions: Pages necesita permiso para publicar (pages) y para firmar el despliegue (id-token).
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # environment: GitHub muestra el enlace de la página publicada en la pestaña "Environments".
+    environment:
+      name: github-pages
+      url: ${{ steps.publicar.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      # --base-href: la web vive en /Pepa-de-Oro/ (no en la raíz del dominio), así encuentra sus archivos.
+      - name: Compilar para GitHub Pages
+        run: npx ng build --configuration production --base-href /${{ github.event.repository.name }}/
+      # Ajustes para Pages:
+      #  - las imágenes escritas como "/img/..." pasan a "img/..." (relativas a /Pepa-de-Oro/).
+      #  - 404.html = copia de index.html: si alguien abre /Pepa-de-Oro/productos directo, Angular la atiende.
+      - name: Preparar archivos para Pages
+        run: |
+          find dist/frontend/browser -type f \( -name '*.js' -o -name '*.html' \) -exec sed -i 's#"/img/#"img/#g' {} +
+          cp dist/frontend/browser/index.html dist/frontend/browser/404.html
+      # upload-pages-artifact: empaqueta la carpeta de la web; deploy-pages la publica.
+      - name: Empaquetar la web
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist/frontend/browser
+      - name: Publicar en GitHub Pages
+        id: publicar
+        uses: actions/deploy-pages@v4
