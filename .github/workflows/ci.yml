@@ -89,7 +89,7 @@ jobs:
         run: npx ng build --configuration production
       # upload-artifact: guarda la web compilada para descargarla desde la pestaña Actions (7 días).
       - name: Guardar la web compilada
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-dist
           path: frontend/dist/
