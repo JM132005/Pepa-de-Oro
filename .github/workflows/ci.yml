@@ -191,4 +191,4 @@ jobs:
           path: frontend/dist/frontend/browser
       - name: Publicar en GitHub Pages
         id: publicar
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
