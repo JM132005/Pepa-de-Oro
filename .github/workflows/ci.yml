@@ -43,7 +43,7 @@ jobs:
         working-directory: backend
     steps:
       # actions/checkout: descarga el código del repositorio en la máquina del robot.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # actions/setup-node: instala Node 22 y guarda en caché las dependencias de npm (más rápido la próxima vez).
       - uses: actions/setup-node@v4
@@ -76,7 +76,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -117,7 +117,7 @@ jobs:
       CORREO_MODO: apagado
       TZ: America/Guayaquil
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -166,7 +166,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
